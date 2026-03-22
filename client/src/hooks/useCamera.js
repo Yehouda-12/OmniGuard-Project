@@ -12,8 +12,9 @@ import socket from '../socket';
  * @param {string} props.userId - מזהה המשתמש הנוכחי לצורך שליחת התראות.
  * @returns {Object} { videoRef, canvasRef, faceCount }
  */
-const useCamera = ({ ready, authorizedFaces, userId }) => {
+const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
   const videoRef = useRef(null);
+  const imgRef = useRef(null);
   const canvasRef = useRef(null);
   const [faceCount, setFaceCount] = useState(0);
 
@@ -23,6 +24,15 @@ const useCamera = ({ ready, authorizedFaces, userId }) => {
     if (!ready) return;
 
     let stream = null;
+
+    // אם ניתנה כתובת של מצלמת IP, נטען התמונה מכתובת זו במקום לקבלת גישה למצלמת הוידאו המקומית
+    if (ipCameraUrl) {
+      if (imgRef.current) {
+        imgRef.current.crossOrigin = 'anonymous'; // כדי למנוע Tainted Canvas
+        imgRef.current.src = ipCameraUrl;
+      }
+      return;
+    }
 
     const startVideo = async () => {
       try {
@@ -42,85 +52,104 @@ const useCamera = ({ ready, authorizedFaces, userId }) => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
+      if (ipCameraUrl && imgRef.current) {
+        imgRef.current.src = '';
+      }
     };
-  }, [ready]);
+  }, [ready, ipCameraUrl]);
 
   // לוגיקת עיבוד פריימים והשוואת פנים
   useEffect(() => {
     if (!ready || !authorizedFaces) return;
 
     const intervalId = setInterval(async () => {
-      if (
-        videoRef.current &&
-        canvasRef.current &&
-        !videoRef.current.paused &&
-        !videoRef.current.ended
-      ) {
-        // 1. לכידת הפריים הנוכחי מהוידאו לקנבס הנסתר
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        const displaySize = { width: video.videoWidth, height: video.videoHeight };
+      const canvas = canvasRef.current;
+      if (!canvas) return;
 
-        // התאמת גודל הקנבס לוידאו כדי שהציור יהיה מדויק
-        canvas.width = displaySize.width;
-        canvas.height = displaySize.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, displaySize.width, displaySize.height);
+      let source = null;
+      let width = 0;
+      let height = 0;
 
-        // 2. זיהוי פנים וחישוב Descriptors באמצעות face-api
-        // אנו משתמשים ב-TinyFaceDetector לביצועים מהירים בזמן אמת
-        const detections = await faceapi
-          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-          .withFaceLandmarks()
-          .withFaceDescriptors();
-
-        setFaceCount(detections.length);
-
-        if (detections.length > 0) {
-          // 3. לוגיקת השוואה וזיהוי פולשים
-          // עוברים על כל הפנים שזוהו בפריים הנוכחי
-          detections.forEach((detection) => {
-            let isMatchFound = false;
-
-            // השוואה מול כל הפנים המורשות ברשימה
-            // Euclidean Distance: מרחק קטן מ-0.6 נחשב להתאמה
-            for (const authorizedFace of authorizedFaces) {
-              // המרה ל-Float32Array למקרה שהמידע הגיע כמערך רגיל מה-DB
-              const authorizedDescriptor = new Float32Array(authorizedFace);
-              const distance = faceapi.euclideanDistance(
-                detection.descriptor,
-                authorizedDescriptor
-              );
-
-              if (distance < 0.6) {
-                isMatchFound = true;
-                break; // נמצאה התאמה, אין צורך להמשיך לבדוק
-              }
-            }
-
-            // 4. אם הפנים לא מוכרות (אין התאמה לאף אחד ברשימה) - שליחת התראה
-            if (!isMatchFound) {
-              console.warn('Unknown face detected! Sending alert...');
-              const imageBase64 = canvas.toDataURL('image/jpeg');
-
-              const alertData = {
-                userId: userId,
-                image: imageBase64,
-                cameraName: 'Webcam',
-                timestamp: new Date().toISOString(),
-              };
-
-              socket.emit('alert', alertData);
-            }
-          });
+      // מצב IP Camera: נטען מתוך IMG עם crossOrigin כדי למנוע "Tainted Canvas"
+      if (ipCameraUrl) {
+        if (!imgRef.current || !imgRef.current.complete) {
+          return;
         }
+
+        imgRef.current.crossOrigin = 'anonymous';
+        source = imgRef.current;
+        width = imgRef.current.naturalWidth;
+        height = imgRef.current.naturalHeight;
+      } else {
+        // מצב Webcam: נטען מתוך וידאו מקומי
+        if (
+          !videoRef.current ||
+          videoRef.current.paused ||
+          videoRef.current.ended ||
+          videoRef.current.videoWidth === 0 ||
+          videoRef.current.videoHeight === 0
+        ) {
+          return;
+        }
+
+        source = videoRef.current;
+        width = videoRef.current.videoWidth;
+        height = videoRef.current.videoHeight;
+      }
+
+      if (!source || width === 0 || height === 0) return;
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      // drawImage מתאים גם ל-VIDEO וגם ל-IMG
+      ctx.drawImage(source, 0, 0, width, height);
+
+      // זיהוי פנים וחישוב Descriptors באמצעות face-api
+      const detections = await faceapi
+        .detectAllFaces(source, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptors();
+
+      setFaceCount(detections.length);
+
+      if (detections.length > 0) {
+        detections.forEach((detection) => {
+          let isMatchFound = false;
+          for (const authorizedFace of authorizedFaces) {
+            const authorizedDescriptor = new Float32Array(authorizedFace);
+            const distance = faceapi.euclideanDistance(
+              detection.descriptor,
+              authorizedDescriptor
+            );
+            if (distance < 0.6) {
+              isMatchFound = true;
+              break;
+            }
+          }
+
+          if (!isMatchFound) {
+            console.warn('Unknown face detected! Sending alert...');
+            const imageBase64 = canvas.toDataURL('image/jpeg');
+
+            const alertData = {
+              userId: userId,
+              image: imageBase64,
+              cameraName: ipCameraUrl ? 'IP Camera' : 'Webcam',
+              timestamp: new Date().toISOString(),
+            };
+
+            socket.emit('alert', alertData);
+          }
+        });
       }
     }, 3000); // הרצה כל 3 שניות כפי שהוגדר בדרישות הפרויקט
 
     return () => clearInterval(intervalId);
-  }, [ready, authorizedFaces, userId]);
+  }, [ready, authorizedFaces, userId, ipCameraUrl]);
 
-  return { videoRef, canvasRef, faceCount };
+  return { videoRef, imgRef, canvasRef, faceCount };
 };
 
 export default useCamera;
