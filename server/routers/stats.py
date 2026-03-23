@@ -48,3 +48,20 @@ async def get_hourly(user_id: str):
     hourly = df.groupby("hour").size().reset_index(name="count")
 
     return hourly.to_dict(orient="records")
+
+
+@router.get("api/stats/daily")
+async def get_daily(user_id: str):
+
+    alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
+
+    if not alerts:
+        return []
+
+    df = pd.DataFrame(alerts)
+    df["date"] = pd.to_datetime(df["timestamp"]).dt.date.astype(str)
+
+    daily = df.groupby("date").size().reset_index(name="count")
+
+    return daily.to_dict(orient="records")
+
