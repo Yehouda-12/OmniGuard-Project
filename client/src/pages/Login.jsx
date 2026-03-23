@@ -1,70 +1,73 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import axios from "axios"
-import './Login.css'
 
-function Login() {
-    // הגדרת משתנים (State)
-    const [inputs, setInputs] = useState({ email: "", password: "" })
-    const [error, setError] = useState(null)
-    const navigate = useNavigate()
+export default function Login() {
+  const [inputs, setInputs] = useState({ email: "", password: "" })
+  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
-    // פונקציה לטיפול שליחת הטופס
-    const handleSubmit = async (e) => {
-        e.preventDefault() // מניעת רענון עמוד
-        setError(null)     // איפוס שגיאות קודמות
-
-        try {
-            const response = await axios.post("http://localhost:8000/api/auth/login", {
-                email: inputs.email,
-                password: inputs.password
-            })
-
-            // שמירת הטוקן ופרטי המשתמש
-            localStorage.setItem("token", response.data.token)
-            localStorage.setItem("user", JSON.stringify(response.data.user))
-
-            // מעבר לעמוד הראשי
-            navigate("/dashboard")
-
-        } catch (err) {
-            // טיפול בשגיאה - הצגת הודעה מהשרת או הודעה כללית
-            setError(err.response?.data?.message || "Login failed")
-        }
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await axios.post("http://localhost:8000/api/auth/login", {
+        email: inputs.email,
+        password: inputs.password
+      })
+      localStorage.setItem("token", res.data.token)
+      localStorage.setItem("user", JSON.stringify(res.data.user))
+      navigate("/dashboard")
+    } catch (err) {
+      setError(err.response?.data?.message || "Invalid email or password")
+    } finally {
+      setLoading(false)
     }
+  }
 
-    return (
-        <div className="login-container">
-            <h1 className="login-title">OmniGuard_Login</h1>
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-logo">OmniGuard</div>
+        <div className="auth-sub">AI Security System — Sign In</div>
 
-            <form className="login-form" onSubmit={handleSubmit}>
-                {/* שורה 46: הצגת שגיאה אם קיימת */}
-                {error && <p className="error-message">{error}</p>}
+        {error && <div className="auth-error">{error}</div>}
 
-                <label htmlFor="Email">Email</label>
-                <input
-                    onChange={(e) => setInputs({ ...inputs, email: e.target.value })}
-                    type="email"
-                    id='Email'
-                    value={inputs.email}
-                    required
-                />
+        <form onSubmit={handleSubmit}>
+          <div className="auth-field">
+            <label className="auth-label">Email</label>
+            <input
+              className="auth-input"
+              type="email"
+              value={inputs.email}
+              onChange={e => setInputs({ ...inputs, email: e.target.value })}
+              placeholder="your@email.com"
+              required
+            />
+          </div>
+          <div className="auth-field">
+            <label className="auth-label">Password</label>
+            <input
+              className="auth-input"
+              type="password"
+              value={inputs.password}
+              onChange={e => setInputs({ ...inputs, password: e.target.value })}
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <button className="auth-btn" type="submit" disabled={loading}>
+            {loading ? "Signing in..." : "→ Access System"}
+          </button>
+        </form>
 
-                <label htmlFor="password">Password</label>
-                {/* שורות 65-66 ו-78: טיפול בשדה סיסמה */}
-                <input
-                    onChange={(e) => setInputs({ ...inputs, password: e.target.value })}
-                    type="password"
-                    id='password'
-                    value={inputs.password}
-                    required
-                />
-
-                <button className="login-button" type='submit'>{'>'} ACCESS SYSTEM</button>
-            </form>
+        <div className="auth-link">
+          No account?
+          <button onClick={() => navigate("/register")}>Register</button>
         </div>
-    )
+      </div>
+    </div>
+  )
 }
-
-export default Login
-
