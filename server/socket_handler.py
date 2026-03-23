@@ -18,6 +18,7 @@ def register_events(sio):
     @sio.event
     async def alert(sid, data):
         print(f"📸 Alert received from camera: {data.get('cameraName')} at {data.get('timestamp')}")
+     
 
         try:
             # 1. Sauvegarder image dans /captures
@@ -51,6 +52,7 @@ def register_events(sio):
             try:
                 user = await users_collection.find_one({"_id": ObjectId(data.get("userId"))})
                 alert_email = user.get("alertEmail") if user else None
+                # alert_email = user.get("alertEmail") or "coheny748@gmail.com"
                 if alert_email:
                     send_alert_email(
                         image_base64=data.get("image"),
@@ -60,7 +62,7 @@ def register_events(sio):
                     )
             except Exception as email_error:
                 print(f"⚠️ Email error: {email_error}")
-
+          
             # 4. Confirmer au frontend
             await sio.emit("alert_received", {"success": True}, to=sid)
 

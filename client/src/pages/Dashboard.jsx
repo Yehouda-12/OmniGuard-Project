@@ -31,7 +31,7 @@ export default function Dashboard() {
   const fetchStats = async () => {
     try {
       
-      const res = await axios.get(`http://localhost:8000/api/stats/summary?user_id=${user?._id || "test"}`, {
+      const res = await axios.get(`http://localhost:8000/api/stats/summary?user_id=${user?.id || "test"}`, {
   headers: { Authorization: `Bearer ${token}` }
 })
       setStats(res.data)
@@ -117,7 +117,7 @@ export default function Dashboard() {
           <div className="section-label">Live Feed</div>
           <div className="camera-wrapper">
             <Camera
-              userId={user?._id || "test"}
+              userId={user?.id || "test"}
               authorizedFaces={camera?.authorizedFaces?.map(f => f.descriptor) || []}
               ipCameraUrl={camera?.url || null}
               cameraName={camera?.name || "Webcam"}

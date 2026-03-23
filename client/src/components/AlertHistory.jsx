@@ -1,42 +1,50 @@
-
 import { useState, useEffect } from "react"
 import axios from "axios"
 
-
 export default function AlertHistory() {
-  // State לשמירת רשימת ההתראות, סטטוס טעינה ושגיאות
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // useEffect: רץ פעם אחת כשהעמוד נטען כדי להביא נתונים
+  // 1. Récupération du token depuis le localStorage
+  const token = localStorage.getItem("token")
+
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        // ביצוע בקשת GET לשרת לקבלת כל ההתראות
-        const response = await axios.get("http://localhost:8000/api/alerts")
-        setAlerts(response.data) // שמירת הנתונים ב-State
+        // 2. Ajout du header Authorization pour la récupération
+        const response = await axios.get("http://localhost:8000/api/alerts", {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        setAlerts(response.data)
       } catch (err) {
         setError("Failed to load alerts history.")
+        console.error(err)
       } finally {
-        setLoading(false) // סיום מצב הטעינה (גם אם הצליח וגם אם נכשל)
+        setLoading(false)
       }
     }
 
-    fetchAlerts()
-  }, []) // המערך הריק [] מבטיח הרצה חד-פעמית
+    if (token) {
+      fetchAlerts()
+    } else {
+      setError("No authorization token found. Please login.")
+      setLoading(false)
+    }
+  }, [token]) 
 
-  // פונקציה למחיקת התראה ספציפית
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this alert?")) return // וידוא מול המשתמש
+    if (!window.confirm("Delete this alert?")) return
 
     try {
-      // שליחת בקשת מחיקה לשרת
-      await axios.delete(`http://localhost:8000/api/alerts/${id}`)
-      // עדכון ה-UI: סינון ההתראה שנמחקה מתוך הרשימה הקיימת
+      // 3. Ajout du header Authorization pour la suppression
+      await axios.delete(`http://localhost:8000/api/alerts/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      
       setAlerts(alerts.filter(alert => alert._id !== id && alert.id !== id))
     } catch (err) {
-      alert("Error deleting alert")
+      alert("Error deleting alert: " + (err.response?.data?.detail || "Unauthorized"))
     }
   }
 
@@ -70,4 +78,3 @@ export default function AlertHistory() {
     </div>
   )
 }
-
