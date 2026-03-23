@@ -3,14 +3,14 @@ import * as faceapi from 'face-api.js';
 import socket from '../socket';
 
 /**
- * Hook מותאם אישית לניהול המצלמה וזיהוי פנים בזמן אמת.
- * ה-Hook דואג לאתחול המצלמה, דגימת פריימים כל 3 שניות, והשוואת פנים מול רשימת מורשים.
+ * Custom hook for real-time camera management and face recognition.
+ * Handles initialization, periodic frame sampling (3s), and face comparison.
  *
  * @param {Object} props
- * @param {boolean} props.ready - האם המודלים של face-api טעונים ומוכנים.
- * @param {Array} props.authorizedFaces - רשימת דסקריפטורים (Descriptors) של פנים מורשות מהדאטה-בייס.
- * @param {string} props.userId - מזהה המשתמש הנוכחי לצורך שליחת התראות.
- * @returns {Object} { videoRef, canvasRef, faceCount }
+ * @param {boolean} props.ready - Indicates if face-api models are loaded.
+ * @param {Array} props.authorizedFaces - List of authorized face descriptors.
+ * @param {string} props.userId - Current user ID for alerts.
+ * @returns {Object} { videoRef, imgRef, canvasRef, faceCount }
  */
 const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
   const videoRef = useRef(null);
@@ -18,17 +18,15 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
   const canvasRef = useRef(null);
   const [faceCount, setFaceCount] = useState(0);
 
-  // אתחול המצלמה
   useEffect(() => {
-    // אם המודלים עדיין לא נטענו, לא נפעיל את המצלמה כדי לחסוך משאבים
     if (!ready) return;
 
     let stream = null;
 
-    // אם ניתנה כתובת של מצלמת IP, נטען התמונה מכתובת זו במקום לקבלת גישה למצלמת הוידאו המקומית
+    // Handle IP Camera stream via IMG tag instead of local webcam.
     if (ipCameraUrl) {
       if (imgRef.current) {
-        imgRef.current.crossOrigin = 'anonymous'; // כדי למנוע Tainted Canvas
+        imgRef.current.crossOrigin = 'anonymous'; // Prevent Tainted Canvas errors.
         imgRef.current.src = ipCameraUrl;
       }
       return;
@@ -47,7 +45,6 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
 
     startVideo();
 
-    // פונקציית ניקוי (Cleanup): סגירת הזרם (Stream) כשהקומפוננטה יוצאת משימוש
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
@@ -58,7 +55,6 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
     };
   }, [ready, ipCameraUrl]);
 
-  // לוגיקת עיבוד פריימים והשוואת פנים
   useEffect(() => {
     if (!ready || !authorizedFaces) return;
 
@@ -70,7 +66,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
       let width = 0;
       let height = 0;
 
-      // מצב IP Camera: נטען מתוך IMG עם crossOrigin כדי למנוע "Tainted Canvas"
+      // IP Camera mode: process image from IMG element.
       if (ipCameraUrl) {
         if (!imgRef.current || !imgRef.current.complete) {
           return;
@@ -81,7 +77,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
         width = imgRef.current.naturalWidth;
         height = imgRef.current.naturalHeight;
       } else {
-        // מצב Webcam: נטען מתוך וידאו מקומי
+        // Webcam mode: process frame from VIDEO element.
         if (
           !videoRef.current ||
           videoRef.current.paused ||
@@ -103,10 +99,10 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
       canvas.height = height;
       const ctx = canvas.getContext('2d');
 
-      // drawImage מתאים גם ל-VIDEO וגם ל-IMG
+      // Draw current frame to canvas.
       ctx.drawImage(source, 0, 0, width, height);
 
-      // זיהוי פנים וחישוב Descriptors באמצעות face-api
+      // Detect faces and compute descriptors.
       const detections = await faceapi
         .detectAllFaces(source, new faceapi.TinyFaceDetectorOptions())
         .withFaceLandmarks()
@@ -119,6 +115,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
           let isMatchFound = false;
           for (const authorizedFace of authorizedFaces) {
             const authorizedDescriptor = new Float32Array(authorizedFace);
+            // Calculate Euclidean distance for face matching.
             const distance = faceapi.euclideanDistance(
               detection.descriptor,
               authorizedDescriptor
@@ -131,6 +128,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
 
           if (!isMatchFound) {
             console.warn('Unknown face detected! Sending alert...');
+            // Alert on unknown face (Base64 encoded).
             const imageBase64 = canvas.toDataURL('image/jpeg');
 
             const alertData = {
@@ -144,7 +142,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
           }
         });
       }
-    }, 3000); // הרצה כל 3 שניות כפי שהוגדר בדרישות הפרויקט
+    }, 3000); // Sample every 3 seconds.
 
     return () => clearInterval(intervalId);
   }, [ready, authorizedFaces, userId, ipCameraUrl]);

@@ -3,10 +3,9 @@ import useFaceApi from '../hooks/useFaceApi';
 import useCamera from '../hooks/useCamera';
 import socket from '../socket';
 
-// הגדרת ערכי עיצוב ברירת מחדל (Design Tokens)
-// ערכים אלו ניתנים לשינוי ע"י העברת prop 'theme' לקומפוננטה.
 const defaultTheme = {
   backgroundColor: '#0a0a0a',
+  // Default border color
   borderColor: '#00c8ff',       // צבע גבול רגיל (כחול)
   hudColor: '#00ff88',          // צבע טקסט HUD (ירוק)
   alertColor: '#ff3355',        // צבע התראה (אדום)
@@ -15,15 +14,11 @@ const defaultTheme = {
   minHeight: '400px',
 };
 
+// Camera component that displays video feed and face detections.
 const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }) => {
-  // איחוד ערכי ברירת המחדל עם הערכים שהתקבלו ב-prop
   const activeTheme = { ...defaultTheme, ...theme };
 
-  // 1. Integration Logic
   const { ready, error: apiError } = useFaceApi();
-  
-  // חיבור ל-Hook של המצלמה שמחזיר הפניות (Refs) לאלמנטים של הוידאו/תמונה והקנבס,
-  // וכן את מספר הפנים המזוהות בזמן אמת.
   const { videoRef, imgRef, canvasRef, faceCount } = useCamera({
     ready,
     authorizedFaces,
@@ -33,10 +28,9 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }
 
   const [isAlerting, setIsAlerting] = useState(false);
 
-  // האזנה לאירוע התראה מהסוקט להפעלת אפקט ויזואלי
+  // Listen for alert events from the socket to trigger a visual effect.
   useEffect(() => {
     const handleAlert = (data) => {
-      // מפעיל את מצב ההתראה (הבהוב אדום) למשך שנייה אחת
       setIsAlerting(true);
       setTimeout(() => setIsAlerting(false), 1000);
     };
@@ -45,12 +39,8 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }
     return () => socket.off('alert', handleAlert);
   }, []);
 
-  // 3. UI & Styling Separation
-
-  // סגנונות פונקציונליים (Functional Styles):
-  // סגנונות אלו קריטיים למיקום האלמנטים (overlay) ולכן נשארים בתוך הקומפוננטה.
-  // position: relative על הקונטיינר ו-position: absolute על הקנבס מבטיחים
-  // שהציור של זיהוי הפנים יהיה מסונכרן בדיוק מעל הוידאו.
+  // Functional Styles: Styles critical for element positioning (overlay).
+  // `position: relative` on the container and `position: absolute` on the canvas
   const layoutStyles = {
     container: {
       position: 'relative',
@@ -77,8 +67,6 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }
     }
   };
 
-  // סגנונות ויזואליים (Visual Styles):
-  // אלו הסגנונות שניתנים להגדרה מבחוץ (Configurable) דרך ה-theme.
   const visualStyles = {
     container: {
       backgroundColor: activeTheme.backgroundColor,
@@ -106,7 +94,6 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }
     }
   };
 
-  // מיזוג הסגנונות
   const containerStyle = { ...layoutStyles.container, ...visualStyles.container };
   const hudStyle = { ...layoutStyles.hudPosition, ...visualStyles.hud };
   const canvasStyle = layoutStyles.overlay;
@@ -122,21 +109,16 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }
 
   return (
     <div style={containerStyle}>
-      {/* HUD: תצוגה עילית של שם המצלמה וכמות זיהויים */}
       <div style={hudStyle}>
         <div>LIVE - {cameraName || 'Unknown Camera'}</div>
         <div>DETECTIONS: {faceCount}</div>
       </div>
 
-      {/* החלפה דינמית בין תג IMG (למצלמות IP) לבין תג VIDEO (למצלמת רשת) */}
-      {/* ההחלטה מתבצעת על בסיס קיום המשתנה ipCameraUrl */}
-      {ipCameraUrl ? (
-        <img ref={imgRef} src={ipCameraUrl} crossOrigin="anonymous" style={mediaStyle} alt="IP Stream" />
-      ) : (
-        <video ref={videoRef} autoPlay muted playsInline style={mediaStyle} />
-      )}
+      {/* Dynamic switch between IMG (for IP cameras) and VIDEO (for webcams). */}
+      {ipCameraUrl ? (<img ref={imgRef} src={ipCameraUrl} crossOrigin="anonymous" style={mediaStyle} alt="IP Stream" />) :
+        (<video ref={videoRef} autoPlay muted playsInline style={mediaStyle} />)}
 
-      {/* שכבת הקנבס לציור זיהויי הפנים מעל הוידאו */}
+      /* Canvas layer for drawing face detections over the video */
       <canvas ref={canvasRef} style={canvasStyle} />
     </div>
   );
