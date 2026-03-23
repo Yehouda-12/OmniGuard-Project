@@ -1,0 +1,34 @@
+from fastapi import APIRouter
+import pandas as pd
+from datetime import date
+from motor.motor_asyncio import AsyncIOMotorClient
+
+
+client = AsyncIOMotorClient("mongodb://localhost:27017")
+db = client["omni_guard"]
+alerts_collection = db["alerts"]
+
+
+router = APIRouter()
+
+@router.get("/stats/summary")
+async def get_summary(user_id: str):
+
+    alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
+
+    if not alerts:
+        return {"totalAlerts": 0, "todayAlerts": 0, "totalCameras": 0}
+
+    df = pd.DataFrame(alerts)
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+    today = date.today()
+    total_alerts = len(df)
+    today_alerts = len(df[df["timestamp"].dt.date == today])
+    total_cameras = df["cameraName"].nunique()
+
+    return {
+        "totalAlerts": total_alerts,
+        "todayAlerts": today_alerts,
+        "totalCameras": total_cameras
+    }
