@@ -1,50 +1,30 @@
-import socketio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from dotenv import load_dotenv
-import httpx
-import os
 
-load_dotenv()
+try:
+    from routers.alerts import router as alerts_router
+    from routers.auth import router as auth_router
+    from routers.cameras import router as cameras_router
+except ImportError:
+    from server.routers.alerts import router as alerts_router
+    from server.routers.auth import router as auth_router
+    from server.routers.cameras import router as cameras_router
 
-# ─── Setup FastAPI + Socket.io ────────────────────────────────────────────────
-sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
-app = FastAPI()
-socket_app = socketio.ASGIApp(sio, app)
+app = FastAPI(title="OmniGuard API")
 
-# ─── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ─── Import routers (Israel + Danny) ─────────────────────────────────────────
-from routers import auth, alerts, cameras, stats
-app.include_router(auth.router,    prefix="/api/auth",    tags=["auth"])
-app.include_router(alerts.router,  prefix="/api/alerts",  tags=["alerts"])
-app.include_router(cameras.router, prefix="/api/cameras", tags=["cameras"])
-app.include_router(stats.router,   prefix="/api/stats",   tags=["stats"])
+app.include_router(auth_router)
+app.include_router(alerts_router)
+app.include_router(cameras_router)
 
-# ─── Import socket handler (Yehouda) ─────────────────────────────────────────
-from socket_handler import register_events
-register_events(sio)
 
-# ─── Route : relay IP camera stream (fixes CORS) ──────────────────────────────
-@app.get("/stream")
-async def stream(url: str):
-    async def generate():
-        async with httpx.AsyncClient(timeout=None) as client:
-            async with client.stream("GET", url) as response:
-                async for chunk in response.aiter_bytes():
-                    yield chunk
-
-    return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
-
-# ─── Health check ─────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
-    return {"status": "OmniGuard server running ✅"}
+    return {"message": "OmniGuard backend is running"}
