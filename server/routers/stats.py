@@ -11,7 +11,7 @@ alerts_collection = db["alerts"]
 
 router = APIRouter()
 
-@router.get("/stats/summary")
+@router.get("api/stats/summary")
 async def get_summary(user_id: str):
 
     alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
@@ -32,3 +32,19 @@ async def get_summary(user_id: str):
         "todayAlerts": today_alerts,
         "totalCameras": total_cameras
     }
+
+
+@router.get("api/stats/hourly")
+async def get_hourly(user_id: str):
+
+    alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
+
+    if not alerts:
+        return []
+
+    df = pd.DataFrame(alerts)
+    df["hour"] = pd.to_datetime(df["timestamp"]).dt.hour
+
+    hourly = df.groupby("hour").size().reset_index(name="count")
+
+    return hourly.to_dict(orient="records")
