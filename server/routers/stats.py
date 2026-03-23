@@ -11,7 +11,7 @@ alerts_collection = db["alerts"]
 
 router = APIRouter()
 
-@router.get("api/stats/summary")
+@router.get("/api/stats/summary")
 async def get_summary(user_id: str):
 
     alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
@@ -34,7 +34,7 @@ async def get_summary(user_id: str):
     }
 
 
-@router.get("api/stats/hourly")
+@router.get("/api/stats/hourly")
 async def get_hourly(user_id: str):
 
     alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
@@ -50,7 +50,7 @@ async def get_hourly(user_id: str):
     return hourly.to_dict(orient="records")
 
 
-@router.get("api/stats/daily")
+@router.get("/api/stats/daily")
 async def get_daily(user_id: str):
 
     alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
@@ -65,3 +65,15 @@ async def get_daily(user_id: str):
 
     return daily.to_dict(orient="records")
 
+@router.get("/api/stats/cameras")
+async def get_by_camera(user_id: str):
+
+    alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
+
+    if not alerts:
+        return []
+
+    df = pd.DataFrame(alerts)
+    by_camera = df.groupby("cameraName").size().reset_index(name="count")
+
+    return by_camera.to_dict(orient="records")
