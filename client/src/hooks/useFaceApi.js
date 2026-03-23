@@ -3,7 +3,7 @@ import * as faceapi from 'face-api.js';
 
 // הגדרת הנתיב (URL) שממנו יטענו המודלים של זיהוי הפנים.
 // המודלים מאוחסנים בשרת CDN כדי להבטיח טעינה מהירה וזמינות.
-const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/model';
 
 /**
  * Hook מותאם אישית לטעינה וניהול של מודלי face-api.js.
