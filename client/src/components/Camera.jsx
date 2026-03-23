@@ -3,7 +3,22 @@ import useFaceApi from '../hooks/useFaceApi';
 import useCamera from '../hooks/useCamera';
 import socket from '../socket';
 
-const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName }) => {
+// הגדרת ערכי עיצוב ברירת מחדל (Design Tokens)
+// ערכים אלו ניתנים לשינוי ע"י העברת prop 'theme' לקומפוננטה.
+const defaultTheme = {
+  backgroundColor: '#0a0a0a',
+  borderColor: '#00c8ff',       // צבע גבול רגיל (כחול)
+  hudColor: '#00ff88',          // צבע טקסט HUD (ירוק)
+  alertColor: '#ff3355',        // צבע התראה (אדום)
+  borderRadius: '8px',
+  fontFamily: 'monospace',
+  minHeight: '400px',
+};
+
+const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }) => {
+  // איחוד ערכי ברירת המחדל עם הערכים שהתקבלו ב-prop
+  const activeTheme = { ...defaultTheme, ...theme };
+
   // 1. Integration Logic
   const { ready, error: apiError } = useFaceApi();
   
@@ -30,57 +45,77 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName }) => {
     return () => socket.off('alert', handleAlert);
   }, []);
 
-  // 3. UI & Styling
-  const containerStyle = {
-    position: 'relative',
-    width: '100%',
-    height: '100%',
-    minHeight: '400px', // גובה מינימלי לתצוגה
-    backgroundColor: '#0a0a0a',
-    border: isAlerting ? '2px solid #ff3355' : '2px solid #00c8ff', // גבול אדום בהתראה, כחול במצב רגיל
-    boxShadow: isAlerting ? '0 0 50px rgba(255, 51, 85, 0.5) inset' : 'none', // אפקט זוהר פנימי אדום בהתראה
-    overflow: 'hidden',
-    borderRadius: '8px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    transition: 'border 0.2s, box-shadow 0.2s',
-    fontFamily: 'monospace', // פונט מונוספייס לפי הדרישות
+  // 3. UI & Styling Separation
+
+  // סגנונות פונקציונליים (Functional Styles):
+  // סגנונות אלו קריטיים למיקום האלמנטים (overlay) ולכן נשארים בתוך הקומפוננטה.
+  // position: relative על הקונטיינר ו-position: absolute על הקנבס מבטיחים
+  // שהציור של זיהוי הפנים יהיה מסונכרן בדיוק מעל הוידאו.
+  const layoutStyles = {
+    container: {
+      position: 'relative',
+      overflow: 'hidden',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: '100%',
+      height: '100%',
+    },
+    overlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      pointerEvents: 'none',
+    },
+    hudPosition: {
+      position: 'absolute',
+      top: '10px',
+      left: '10px',
+      zIndex: 10,
+    }
   };
 
-  const mediaStyle = {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    display: 'block',
+  // סגנונות ויזואליים (Visual Styles):
+  // אלו הסגנונות שניתנים להגדרה מבחוץ (Configurable) דרך ה-theme.
+  const visualStyles = {
+    container: {
+      backgroundColor: activeTheme.backgroundColor,
+      borderRadius: activeTheme.borderRadius,
+      minHeight: activeTheme.minHeight,
+      fontFamily: activeTheme.fontFamily,
+      // לוגיקה ויזואלית לשינוי גבול וצללית בזמן התראה
+      border: isAlerting ? `2px solid ${activeTheme.alertColor}` : `2px solid ${activeTheme.borderColor}`,
+      boxShadow: isAlerting ? `0 0 50px ${activeTheme.alertColor}80 inset` : 'none', // שימוש ב-Hex Alpha
+      transition: 'border 0.2s, box-shadow 0.2s',
+    },
+    hud: {
+      color: activeTheme.hudColor,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      padding: '4px 8px',
+      borderRadius: '4px',
+      fontSize: '14px',
+      fontWeight: 'bold',
+    },
+    media: {
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      display: 'block',
+    }
   };
 
-  const canvasStyle = {
-    position: 'absolute', // מיקום אבסולוטי כדי לשבת בדיוק על הוידאו
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    pointerEvents: 'none', // מאפשר קליקים לעבור דרך הקנבס אם צריך
-  };
-
-  const hudStyle = {
-    position: 'absolute',
-    top: '10px',
-    left: '10px',
-    color: '#00ff88', // צבע ירוק זרחני לטקסט
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    zIndex: 10,
-  };
+  // מיזוג הסגנונות
+  const containerStyle = { ...layoutStyles.container, ...visualStyles.container };
+  const hudStyle = { ...layoutStyles.hudPosition, ...visualStyles.hud };
+  const canvasStyle = layoutStyles.overlay;
+  const mediaStyle = visualStyles.media;
 
   if (!ready) {
     return (
       <div style={containerStyle}>
-        <div style={{ color: '#00c8ff' }}>Initializing AI Models...</div>
+        <div style={{ color: activeTheme.borderColor }}>Initializing AI Models...</div>
       </div>
     );
   }
