@@ -1,2 +1,13 @@
+.venv
+.venv/
+.env
+.env/
+.idea
+.idea/
+/__pycache__/
+*__pycache__*
 __pycache__/
+server/routers/routes_test.py
+server/routers/routes_test.py/
+
 *.pyc
