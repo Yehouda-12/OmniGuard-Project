@@ -17,7 +17,7 @@ export default function Login() {
         email: inputs.email,
         password: inputs.password
       })
-      localStorage.setItem("token", res.data.token)
+      localStorage.setItem("token", res.data.jwt)  
       localStorage.setItem("user", JSON.stringify(res.data.user))
       navigate("/dashboard")
     } catch (err) {

@@ -14,7 +14,7 @@ except ImportError:
     from server.routers.auth import get_current_user
     from server.send_email import send_alert_email
 
-router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+router = APIRouter(tags=["alerts"])
 
 
 def serialize_alert(alert: dict) -> dict:

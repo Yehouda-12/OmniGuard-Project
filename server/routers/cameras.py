@@ -13,7 +13,7 @@ except ImportError:
     from server.models.user import AuthorizedFace, Camera
     from server.routers.auth import get_current_user
 
-router = APIRouter(prefix="/api/cameras", tags=["cameras"])
+router = APIRouter( tags=["cameras"])
 
 
 class CameraUpdateRequest(BaseModel):

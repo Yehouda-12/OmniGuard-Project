@@ -30,21 +30,29 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/stats/summary", {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      
+      const res = await axios.get(`http://localhost:8000/api/stats/summary?user_id=${user?._id || "test"}`, {
+  headers: { Authorization: `Bearer ${token}` }
+})
       setStats(res.data)
     } catch (e) { console.error("Stats error:", e) }
   }
 
+  // const fetchAlerts = async () => {
+  //   try {
+  //     const res = await axios.get("http://localhost:8000/api/alerts", {
+  //       headers: { Authorization: `Bearer ${token}` }
+  //     })
+  //     setAlerts(res.data)
+  //   } catch (e) { console.error("Alerts error:", e) }
+  // }
   const fetchAlerts = async () => {
-    try {
-      const res = await axios.get("http://localhost:8000/api/alerts", {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setAlerts(res.data)
-    } catch (e) { console.error("Alerts error:", e) }
-  }
+  try {
+    const res = await axios.get("http://localhost:8000/api/alerts")
+    // sans header Authorization pour l'instant
+    setAlerts(res.data)
+  } catch (e) { console.error("Alerts error:", e) }
+}
 
   const handleLogout = () => {
     localStorage.removeItem("token")

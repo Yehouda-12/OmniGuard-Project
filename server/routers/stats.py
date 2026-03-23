@@ -1,21 +1,17 @@
-from fastapi import APIRouter
 import io
-from fastapi.responses import StreamingResponse
-import pandas as pd
 from datetime import date
-from motor.motor_asyncio import AsyncIOMotorClient
+
+import pandas as pd
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+
+from database import alerts_collection
+
+router = APIRouter(tags=["stats"])
 
 
-client = AsyncIOMotorClient("mongodb://localhost:27017")
-db = client["omni_guard"]
-alerts_collection = db["alerts"]
-
-
-router = APIRouter()
-
-@router.get("/api/stats/summary")
+@router.get("/summary")
 async def get_summary(user_id: str):
-
     alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
@@ -30,15 +26,14 @@ async def get_summary(user_id: str):
     total_cameras = df["cameraName"].nunique()
 
     return {
-        "totalAlerts": total_alerts,
-        "todayAlerts": today_alerts,
-        "totalCameras": total_cameras
+        "totalAlerts": int(total_alerts),
+        "todayAlerts": int(today_alerts),
+        "totalCameras": int(total_cameras),
     }
 
 
-@router.get("/api/stats/hourly")
+@router.get("/hourly")
 async def get_hourly(user_id: str):
-
     alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
@@ -46,15 +41,13 @@ async def get_hourly(user_id: str):
 
     df = pd.DataFrame(alerts)
     df["hour"] = pd.to_datetime(df["timestamp"]).dt.hour
-
     hourly = df.groupby("hour").size().reset_index(name="count")
 
     return hourly.to_dict(orient="records")
 
 
-@router.get("/api/stats/daily")
+@router.get("/daily")
 async def get_daily(user_id: str):
-
     alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
@@ -62,14 +55,13 @@ async def get_daily(user_id: str):
 
     df = pd.DataFrame(alerts)
     df["date"] = pd.to_datetime(df["timestamp"]).dt.date.astype(str)
-
     daily = df.groupby("date").size().reset_index(name="count")
 
     return daily.to_dict(orient="records")
 
-@router.get("/api/stats/cameras")
-async def get_by_camera(user_id: str):
 
+@router.get("/cameras")
+async def get_by_camera(user_id: str):
     alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
@@ -81,16 +73,19 @@ async def get_by_camera(user_id: str):
     return by_camera.to_dict(orient="records")
 
 
-@router.get("/api/export/csv")
+@router.get("/csv")
 async def export_csv(user_id: str):
-
     alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
-        empty_csv = io.StringIO()
-        empty_csv.write("totalAlerts,todayAlerts,totalCameras\n")
-        empty_csv.seek(0)
-        return StreamingResponse(empty_csv, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=alerts.csv"})
+        stream = io.StringIO()
+        stream.write("userId,cameraName,timestamp,type\n")
+        stream.seek(0)
+        return StreamingResponse(
+            stream,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=alerts.csv"}
+        )
 
     df = pd.DataFrame(alerts)
 
