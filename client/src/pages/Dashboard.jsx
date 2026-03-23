@@ -16,7 +16,7 @@ export default function Dashboard() {
   const [activePage, setActivePage] = useState("dashboard")
 
   useEffect(() => {
-    // if (!token) { navigate("/login"); return }
+    if (!token) { navigate("/login"); return }
     fetchStats()
     fetchAlerts()
   }, [])
@@ -38,21 +38,15 @@ export default function Dashboard() {
     } catch (e) { console.error("Stats error:", e) }
   }
 
-  // const fetchAlerts = async () => {
-  //   try {
-  //     const res = await axios.get("http://localhost:8000/api/alerts", {
-  //       headers: { Authorization: `Bearer ${token}` }
-  //     })
-  //     setAlerts(res.data)
-  //   } catch (e) { console.error("Alerts error:", e) }
-  // }
   const fetchAlerts = async () => {
-  try {
-    const res = await axios.get("http://localhost:8000/api/alerts")
-    // sans header Authorization pour l'instant
-    setAlerts(res.data)
-  } catch (e) { console.error("Alerts error:", e) }
-}
+    try {
+      const res = await axios.get("http://localhost:8000/api/alerts", {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setAlerts(res.data)
+    } catch (e) { console.error("Alerts error:", e) }
+  }
+  
 
   const handleLogout = () => {
     localStorage.removeItem("token")
