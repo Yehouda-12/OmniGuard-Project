@@ -1,4 +1,6 @@
 from fastapi import APIRouter
+import io
+from fastapi.responses import StreamingResponse
 import pandas as pd
 from datetime import date
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -14,7 +16,7 @@ router = APIRouter()
 @router.get("/api/stats/summary")
 async def get_summary(user_id: str):
 
-    alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
+    alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
         return {"totalAlerts": 0, "todayAlerts": 0, "totalCameras": 0}
@@ -37,7 +39,7 @@ async def get_summary(user_id: str):
 @router.get("/api/stats/hourly")
 async def get_hourly(user_id: str):
 
-    alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
+    alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
         return []
@@ -53,7 +55,7 @@ async def get_hourly(user_id: str):
 @router.get("/api/stats/daily")
 async def get_daily(user_id: str):
 
-    alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
+    alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
         return []
@@ -68,7 +70,7 @@ async def get_daily(user_id: str):
 @router.get("/api/stats/cameras")
 async def get_by_camera(user_id: str):
 
-    alerts = await alerts_collection.find({"userId": user_id}).to_list(1000)
+    alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
 
     if not alerts:
         return []
@@ -77,3 +79,30 @@ async def get_by_camera(user_id: str):
     by_camera = df.groupby("cameraName").size().reset_index(name="count")
 
     return by_camera.to_dict(orient="records")
+
+
+@router.get("/api/export/csv")
+async def export_csv(user_id: str):
+
+    alerts = await alerts_collection.find({"userId": user_id}, {"_id": 0}).to_list(1000)
+
+    if not alerts:
+        empty_csv = io.StringIO()
+        empty_csv.write("totalAlerts,todayAlerts,totalCameras\n")
+        empty_csv.seek(0)
+        return StreamingResponse(empty_csv, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=alerts.csv"})
+
+    df = pd.DataFrame(alerts)
+
+    if "image" in df.columns:
+        df = df.drop(columns=["image"])
+
+    stream = io.StringIO()
+    df.to_csv(stream, index=False)
+    stream.seek(0)
+
+    return StreamingResponse(
+        stream,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=alerts.csv"}
+    )
