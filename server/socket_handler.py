@@ -42,6 +42,8 @@ def register_events(sio):
                     "image":      data.get("image"),
                     "timestamp":  data.get("timestamp", datetime.utcnow().isoformat()),
                     "type":       data.get("type", "unknownFace"),
+                     "descriptor": data.get("descriptor"),   
+    "cameraId":   data.get("cameraId"), 
                 }
                 result = await alerts_collection.insert_one(alert_doc)
                 print(f"💾 Alert saved to MongoDB: {result.inserted_id}")
@@ -64,7 +66,15 @@ def register_events(sio):
                 print(f"⚠️ Email error: {email_error}")
           
             # 4. Confirmer au frontend
-            await sio.emit("alert_received", {"success": True}, to=sid)
+            await sio.emit("alert_received", {
+    "success":    True,
+    "descriptor": data.get("descriptor"),
+    "cameraId":   data.get("cameraId"),
+    "image":      data.get("image"),
+    "cameraName": data.get("cameraName"),
+    "timestamp":  data.get("timestamp"),
+    "type":       data.get("type"),
+}, to=sid)
 
         except Exception as e:
             print(f"❌ Error handling alert: {e}")

@@ -10,8 +10,8 @@ export default function AlertToast({ alert, onDismiss, onAuthorized, token }) {
     if (!name.trim()) return
     if (!alert.descriptor || !alert.cameraId) {
       // descriptor not available yet (waiting for Pini's update)
-      alert("Feature coming soon — Pini is working on it!")
-      return
+      console.log("descriptor not available")
+return
     }
 
     setLoading(true)

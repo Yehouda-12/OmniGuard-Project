@@ -15,7 +15,7 @@ const defaultTheme = {
   minHeight: '400px',
 };
 
-const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }) => {
+const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {}, cameraId }) => {
   // איחוד ערכי ברירת המחדל עם הערכים שהתקבלו ב-prop
   const activeTheme = { ...defaultTheme, ...theme };
 
@@ -29,6 +29,7 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }
     authorizedFaces,
     userId,
     ipCameraUrl,
+    cameraId
   });
 
   const [isAlerting, setIsAlerting] = useState(false);

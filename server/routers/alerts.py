@@ -25,6 +25,8 @@ def serialize_alert(alert: dict) -> dict:
         "image": alert["image"],
         "timestamp": alert["timestamp"],
         "type": alert["type"],
+         "descriptor": alert.get("descriptor"), 
+        "cameraId":   alert.get("cameraId")
     }
 
 

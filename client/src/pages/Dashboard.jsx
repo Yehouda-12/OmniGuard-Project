@@ -247,6 +247,7 @@ export default function Dashboard() {
                 authorizedFaces={authorizedFaces}
                 ipCameraUrl={selectedCam?.url || null}
                 cameraName={selectedCam?.name || "Webcam"}
+                 cameraId={selectedCam?.id}
               />
             ) : (
               <div className="cam-placeholder">
