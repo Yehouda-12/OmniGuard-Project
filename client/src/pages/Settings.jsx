@@ -160,10 +160,10 @@ export default function Settings() {
               <input
                 className="auth-input"
                 type="text"
-                placeholder="http://192.168.x.x:8080/video"
+               placeholder="http://192.168.x.x:8080/video — leave empty for built-in webcam"
                 value={newCamera.url}
                 onChange={e => setNewCamera({ ...newCamera, url: e.target.value })}
-                required
+                
               />
             </div>
             <button className="auth-btn" type="submit">+ Add Camera</button>

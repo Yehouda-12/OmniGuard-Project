@@ -50,6 +50,7 @@ async def get_today_alerts(current_user: dict = Depends(get_current_user)):
 
 @router.delete("/{id}")
 async def delete_alert(id: str, current_user: dict = Depends(get_current_user)):
+    print(f"Trying to delete: {id} for user: {str(current_user['_id'])}")
     if not ObjectId.is_valid(id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

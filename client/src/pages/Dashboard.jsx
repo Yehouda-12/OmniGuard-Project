@@ -5,6 +5,8 @@ import Camera from "../components/Camera"
 import AlertHistory from "../components/AlertHistory"
 import socket from "../socket"
 
+const WEBCAM_OPTION = { id: "webcam", name: "Built-in Webcam", url: null, authorizedFaces: [] }
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const token = localStorage.getItem("token")
@@ -14,30 +16,47 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ todayAlerts: 0, totalCameras: 0, totalAlerts: 0 })
   const [alerts, setAlerts] = useState([])
   const [hourlyData, setHourlyData] = useState([])
-  const [activePage, setActivePage] = useState("dashboard")
-  const [camUrl, setCamUrl] = useState("")
-  const [camName, setCamName] = useState("Webcam")
-  const [activeCam, setActiveCam] = useState(null)
+  const [dailyData, setDailyData] = useState([])
+  const [cameraStats, setCameraStats] = useState([])
+  const [statsOpen, setStatsOpen] = useState(false)
+  const [cameras, setCameras] = useState([])
+  const [selectedCam, setSelectedCam] = useState(WEBCAM_OPTION)
   const [surveillance, setSurveillance] = useState(false)
+  const [activePage, setActivePage] = useState("dashboard")
 
   useEffect(() => {
-    fetchAlerts()
-    fetchStats()
-    fetchHourly()
+    fetchAll()
   }, [])
 
   useEffect(() => {
     socket.on("alert_received", (data) => {
-      if (data.success) { fetchAlerts(); fetchStats(); fetchHourly() }
+      if (data.success) { fetchAlerts(); fetchStats(); fetchHourly(); fetchDaily(); fetchCameraStats() }
     })
     return () => socket.off("alert_received")
   }, [])
 
+  const fetchAll = async () => {
+    await Promise.all([
+      fetchCameras(),
+      fetchAlerts(),
+      fetchStats(),
+      fetchHourly(),
+      fetchDaily(),
+      fetchCameraStats()
+    ])
+  }
+
+  const fetchCameras = async () => {
+    try {
+      const res = await axios.get("http://localhost:8000/api/cameras", config)
+      setCameras(res.data)
+    } catch (e) { console.error("Cameras error:", e) }
+  }
+
   const fetchStats = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/summary?user_id=${user?.id || "test"}`,
-        config
+        `http://localhost:8000/api/stats/summary?user_id=${user?.id || "test"}`, config
       )
       setStats(res.data)
     } catch (e) { console.error("Stats error:", e) }
@@ -53,11 +72,35 @@ export default function Dashboard() {
   const fetchHourly = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/hourly?user_id=${user?.id || "test"}`,
-        config
+        `http://localhost:8000/api/stats/hourly?user_id=${user?.id || "test"}`, config
       )
       setHourlyData(res.data)
     } catch (e) { console.error("Hourly error:", e) }
+  }
+
+  const fetchDaily = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:8000/api/stats/daily?user_id=${user?.id || "test"}`, config
+      )
+      setDailyData(res.data)
+    } catch (e) { console.error("Daily error:", e) }
+  }
+
+  const fetchCameraStats = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:8000/api/stats/cameras?user_id=${user?.id || "test"}`, config
+      )
+      setCameraStats(res.data)
+    } catch (e) { console.error("Camera stats error:", e) }
+  }
+
+  const handleExportCSV = () => {
+    window.open(
+      `http://localhost:8000/api/stats/csv?user_id=${user?.id || "test"}`,
+      "_blank"
+    )
   }
 
   const handleLogout = () => {
@@ -66,21 +109,9 @@ export default function Dashboard() {
     navigate("/login")
   }
 
-  const handleConnect = () => {
-    setActiveCam({ url: camUrl || null, name: camName })
-    setSurveillance(false)
-  }
-
-  const handleStartSurveillance = () => {
-    if (!activeCam) {
-      setActiveCam({ url: camUrl || null, name: camName })
-    }
-    setSurveillance(true)
-  }
-
-  const handleStop = () => {
-    setSurveillance(false)
-  }
+  const allCamOptions = [WEBCAM_OPTION, ...cameras]
+  const authorizedFaces = selectedCam?.authorizedFaces?.map(f => f.descriptor) || []
+  const totalAuthFaces = cameras.reduce((acc, c) => acc + (c.authorizedFaces?.length || 0), 0)
 
   const navItems = [
     { id: "dashboard", label: "Dashboard" },
@@ -139,37 +170,34 @@ export default function Dashboard() {
           ))}
           <div className="sidebar-divider"/>
           <button className="nav-item" onClick={() => navigate("/settings")}>Settings</button>
+          <button className="nav-item" onClick={handleExportCSV}>Export CSV</button>
           <button className="nav-item nav-item--logout" onClick={handleLogout}>Logout</button>
         </aside>
 
         {/* ── Main ── */}
         <main className="main-content">
 
-          {/* Camera URL input */}
+          {/* Camera selector */}
           <div className="cam-connect">
-            <input
+            <select
               className="auth-input"
-              type="text"
-              placeholder="http://192.168.x.x:8080/video (leave empty for webcam)"
-              value={camUrl}
-              onChange={e => setCamUrl(e.target.value)}
               style={{ flex: 1 }}
-            />
-            <input
-              className="auth-input"
-              type="text"
-              placeholder="Camera name"
-              value={camName}
-              onChange={e => setCamName(e.target.value)}
-              style={{ width: 140 }}
-            />
-            <button
-              className="auth-btn"
-              style={{ width: "auto", padding: "9px 18px" }}
-              onClick={handleConnect}
+              value={selectedCam?.id || "webcam"}
+              onChange={e => {
+                const cam = allCamOptions.find(c => c.id === e.target.value)
+                setSelectedCam(cam)
+                setSurveillance(false)
+              }}
             >
-              Set Camera
-            </button>
+              {allCamOptions.map(cam => (
+                <option key={cam.id} value={cam.id}>
+                  {cam.name}{cam.url ? ` — ${cam.url}` : " (laptop/USB)"}
+                </option>
+              ))}
+            </select>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", alignSelf: "center", whiteSpace: "nowrap" }}>
+              {authorizedFaces.length} face{authorizedFaces.length !== 1 ? "s" : ""}
+            </div>
           </div>
 
           {/* Surveillance buttons */}
@@ -177,7 +205,7 @@ export default function Dashboard() {
             <button
               className="auth-btn"
               style={{ width: "auto", padding: "9px 20px" }}
-              onClick={handleStartSurveillance}
+              onClick={() => setSurveillance(true)}
               disabled={surveillance}
             >
               ▶ Start Surveillance
@@ -191,22 +219,22 @@ export default function Dashboard() {
                 color: "var(--accent-red)",
                 opacity: surveillance ? 1 : 0.4
               }}
-              onClick={handleStop}
+              onClick={() => setSurveillance(false)}
               disabled={!surveillance}
             >
               ■ Stop
             </button>
           </div>
 
-          {/* Camera feed — only when surveillance is ON */}
+          {/* Camera feed */}
           <div className="section-label">Live Feed</div>
           <div className="camera-wrapper">
             {surveillance ? (
               <Camera
                 userId={user?.id || "test"}
-                authorizedFaces={[]}
-                ipCameraUrl={activeCam?.url || null}
-                cameraName={activeCam?.name || "Webcam"}
+                authorizedFaces={authorizedFaces}
+                ipCameraUrl={selectedCam?.url || null}
+                cameraName={selectedCam?.name || "Webcam"}
               />
             ) : (
               <div className="cam-placeholder">
@@ -214,51 +242,109 @@ export default function Dashboard() {
                   <path d="M23 7l-7 5 7 5V7z"/>
                   <rect x="1" y="5" width="15" height="14" rx="2"/>
                 </svg>
-                <p>Press Start Surveillance to activate camera</p>
+                <p>Press Start Surveillance to activate</p>
               </div>
             )}
           </div>
 
-          {/* Stats */}
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-value stat-value--red">{stats.todayAlerts ?? 0}</div>
-              <div className="stat-label">Alerts Today</div>
+          {/* Stats accordion */}
+          <div className="accordion">
+            <div
+              className="accordion-header"
+              onClick={() => setStatsOpen(o => !o)}
+            >
+              <span>
+                Statistics — {stats.todayAlerts ?? 0} alerts today · {cameras.length} cameras · {totalAuthFaces} auth faces
+              </span>
+              <span className={`accordion-arrow ${statsOpen ? "accordion-arrow--open" : ""}`}>▼</span>
             </div>
-            <div className="stat-card">
-              <div className="stat-value stat-value--blue">{stats.totalCameras ?? 0}</div>
-              <div className="stat-label">Active Cameras</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value stat-value--red">{stats.totalAlerts ?? 0}</div>
-              <div className="stat-label">Total Alerts</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value stat-value--green">{alerts.length}</div>
-              <div className="stat-label">In History</div>
-            </div>
-          </div>
 
-          {/* Hourly chart */}
-          <div className="chart-card">
-            <div className="chart-title">Alerts by Hour</div>
-            <div className="chart-bars">
-              {Array.from({ length: 12 }, (_, i) => {
-                const hour = i + 6
-                const count = hourlyData.find(d => d.hour === hour)?.count || 0
-                const max = Math.max(...hourlyData.map(d => d.count), 1)
-                const pct = Math.round((count / max) * 100)
-                return (
-                  <div key={hour} className="chart-col">
-                    <div
-                      className={`chart-bar ${count > 0 ? "chart-bar--active" : ""}`}
-                      style={{ height: `${Math.max(pct, 4)}%` }}
-                    />
-                    <div className="chart-label">{String(hour).padStart(2, "0")}</div>
+            {statsOpen && (
+              <div className="accordion-body">
+                {/* Stat cards */}
+                <div className="stats-grid" style={{ marginBottom: 14 }}>
+                  <div className="stat-card">
+                    <div className="stat-value stat-value--red">{stats.todayAlerts ?? 0}</div>
+                    <div className="stat-label">Alerts Today</div>
                   </div>
-                )
-              })}
-            </div>
+                  <div className="stat-card">
+                    <div className="stat-value stat-value--blue">{cameras.length}</div>
+                    <div className="stat-label">IP Cameras</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value stat-value--red">{stats.totalAlerts ?? 0}</div>
+                    <div className="stat-label">Total Alerts</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value stat-value--green">{totalAuthFaces}</div>
+                    <div className="stat-label">Auth Faces</div>
+                  </div>
+                </div>
+
+                {/* Charts */}
+                <div className="charts-row">
+                  <div className="chart-card">
+                    <div className="chart-title">Alerts by Hour</div>
+                    <div className="chart-bars">
+                      {Array.from({ length: 12 }, (_, i) => {
+                        const hour = i + 6
+                        const count = hourlyData.find(d => d.hour === hour)?.count || 0
+                        const max = Math.max(...hourlyData.map(d => d.count), 1)
+                        const pct = Math.round((count / max) * 100)
+                        return (
+                          <div key={hour} className="chart-col">
+                            <div className={`chart-bar ${count > 0 ? "chart-bar--active" : ""}`} style={{ height: `${Math.max(pct, 4)}%` }}/>
+                            <div className="chart-label">{String(hour).padStart(2, "0")}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="chart-card">
+                    <div className="chart-title">Last 7 Days</div>
+                    <div className="chart-bars">
+                      {dailyData.slice(-7).map((d, i) => {
+                        const max = Math.max(...dailyData.map(x => x.count), 1)
+                        const pct = Math.round((d.count / max) * 100)
+                        const label = new Date(d.date).toLocaleDateString("en", { weekday: "short" })
+                        return (
+                          <div key={i} className="chart-col">
+                            <div className={`chart-bar ${d.count > 0 ? "chart-bar--active" : ""}`} style={{ height: `${Math.max(pct, 4)}%` }}/>
+                            <div className="chart-label">{label}</div>
+                          </div>
+                        )
+                      })}
+                      {dailyData.length === 0 && (
+                        <div style={{ fontSize: 11, color: "var(--text-muted)", padding: "20px 0" }}>No data yet</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Camera stats */}
+                {cameraStats.length > 0 && (
+                  <div className="chart-card" style={{ marginTop: 14 }}>
+                    <div className="chart-title">Alerts by Camera</div>
+                    <div className="cam-stats-list">
+                      {cameraStats.map((c, i) => {
+                        const max = Math.max(...cameraStats.map(x => x.count), 1)
+                        const pct = Math.round((c.count / max) * 100)
+                        return (
+                          <div key={i} className="cam-stat-row">
+                            <div className="cam-stat-name">{c.cameraName}</div>
+                            <div className="cam-stat-bar-wrap">
+                              <div className="cam-stat-bar" style={{ width: `${pct}%` }}/>
+                            </div>
+                            <div className="cam-stat-count">{c.count}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
         </main>
