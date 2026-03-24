@@ -3,6 +3,7 @@ import { useNavigate } from "react-router"
 import axios from "axios"
 import Camera from "../components/Camera"
 import AlertHistory from "../components/AlertHistory"
+import AlertToast from "../components/AlertToast"
 import socket from "../socket"
 
 const WEBCAM_OPTION = { id: "webcam", name: "Built-in Webcam", url: null, authorizedFaces: [] }
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [dailyData, setDailyData] = useState([])
   const [cameraStats, setCameraStats] = useState([])
   const [statsOpen, setStatsOpen] = useState(false)
+  const [toasts, setToasts] = useState([])
   const [cameras, setCameras] = useState([])
   const [selectedCam, setSelectedCam] = useState(WEBCAM_OPTION)
   const [surveillance, setSurveillance] = useState(false)
@@ -30,7 +32,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     socket.on("alert_received", (data) => {
-      if (data.success) { fetchAlerts(); fetchStats(); fetchHourly(); fetchDaily(); fetchCameraStats() }
+      if (data.success) {
+        fetchAlerts()
+        fetchStats()
+        fetchHourly()
+        fetchDaily()
+        fetchCameraStats()
+        // Show toast for unknown face
+        if (data.type === "unknownFace" || !data.type) {
+          setToasts(prev => [...prev, { ...data, id: Date.now() }])
+        }
+      }
     })
     return () => socket.off("alert_received")
   }, [])
@@ -359,6 +371,22 @@ export default function Dashboard() {
         </aside>
 
       </div>
+      {/* ── Toast notifications ── */}
+      <div className="toast-container">
+        {toasts.map(toast => (
+          <AlertToast
+            key={toast.id}
+            alert={toast}
+            token={token}
+            onDismiss={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+            onAuthorized={(name) => {
+              setToasts(prev => prev.filter(t => t.id !== toast.id))
+              fetchCameras()
+            }}
+          />
+        ))}
+      </div>
+
     </div>
   )
 }

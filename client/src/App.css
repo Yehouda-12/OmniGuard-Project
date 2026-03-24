@@ -614,3 +614,99 @@ select.auth-input option { background: var(--bg-elevated); color: var(--text-pri
 .accordion-arrow { font-size: 10px; transition: transform .2s; }
 .accordion-arrow--open { transform: rotate(180deg); }
 .accordion-body { padding: 14px; background: var(--bg-surface); border-top: 1px solid var(--border); }
+
+/* ── Alert Toast ── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 999;
+  max-width: 300px;
+}
+.toast {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideUp .2s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,.3);
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.toast--danger { border-color: rgba(229,83,75,.3); }
+.toast-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent-red);
+  box-shadow: 0 0 6px var(--accent-red);
+  flex-shrink: 0;
+  animation: blink 1s infinite;
+}
+.toast-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.toast-close:hover { color: var(--text-primary); }
+.toast-info {
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.toast-img {
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  display: block;
+  max-height: 120px;
+  object-fit: cover;
+}
+.toast-actions {
+  display: flex;
+  gap: 8px;
+}
+.toast-btn {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all .15s;
+}
+.toast-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.toast-btn--primary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+}
+.toast-btn--primary:hover { opacity: .88; }
+.toast-btn:disabled { opacity: .4; cursor: not-allowed; }
+.toast-naming { display: flex; flex-direction: column; gap: 8px; }
