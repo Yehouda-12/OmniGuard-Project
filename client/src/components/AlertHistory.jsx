@@ -1,80 +1,87 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import axios from "axios"
-
-export default function AlertHistory() {
-  const [alerts, setAlerts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-
-  // 1. Récupération du token depuis le localStorage
-  const token = localStorage.getItem("token")
-
-  useEffect(() => {
-    const fetchAlerts = async () => {
-      try {
-        // 2. Ajout du header Authorization pour la récupération
-        const response = await axios.get("http://localhost:8000/api/alerts", {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        setAlerts(response.data)
-      } catch (err) {
-        setError("Failed to load alerts history.")
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (token) {
-      fetchAlerts()
-    } else {
-      setError("No authorization token found. Please login.")
-      setLoading(false)
-    }
-  }, [token]) 
-
+ 
+export default function AlertHistory({ alerts, onDelete, token }) {
+  const [deleting, setDeleting] = useState(null)
+  const [expanded, setExpanded] = useState(null)
+ 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this alert?")) return
-
+    setDeleting(id)
     try {
-      // 3. Ajout du header Authorization pour la suppression
       await axios.delete(`http://localhost:8000/api/alerts/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      
-      setAlerts(alerts.filter(alert => alert._id !== id && alert.id !== id))
+      onDelete()
     } catch (err) {
-      alert("Error deleting alert: " + (err.response?.data?.detail || "Unauthorized"))
+      alert("Error: " + (err.response?.data?.detail || "Could not delete"))
+    } finally {
+      setDeleting(null)
     }
   }
-
-  if (loading) return <div className="history-container">Loading data...</div>
-  if (error) return <div className="history-container" style={{ color: "#ff3355" }}>{error}</div>
-
+ 
+  if (alerts.length === 0) {
+    return (
+      <div className="alert-list">
+        <div className="settings-empty">No alerts yet</div>
+      </div>
+    )
+  }
+ 
   return (
-    <div className="history-container">
-      <h1 className="history-title">Security Alert Logs</h1>
-
-      {alerts.length === 0 ? (
-        <div className="empty-state">No alerts found in the system.</div>
-      ) : (
-        <div className="alerts-grid">
-          {alerts.map((alert) => (
-            <div key={alert._id || alert.id} className="alert-card">
-              <img src={alert.image} alt="Security Capture" className="alert-image" />
-              
-              <div className="alert-info">
-                <div className="camera-name">CAM: {alert.cameraName}</div>
-                <div className="timestamp">{new Date(alert.timestamp).toLocaleString()}</div>
-                
-                <button className="delete-btn" onClick={() => handleDelete(alert._id || alert.id)}>
-                  [X] DELETE RECORD
-                </button>
-              </div>
+    <div className="alert-list">
+      {alerts.map((alert) => {
+        const id = alert.id || alert._id
+        const isExpanded = expanded === id
+        const isDanger = alert.type === "unknownFace"
+ 
+        return (
+          <div
+            key={id}
+            className={`alert-item ${isDanger ? "alert-item--danger" : ""}`}
+            onClick={() => setExpanded(isExpanded ? null : id)}
+            style={{ cursor: "pointer" }}
+          >
+            {/* Thumbnail */}
+            <div className="alert-thumb">
+              {alert.image
+                ? <img src={alert.image} alt="capture" />
+                : <div className="alert-thumb-placeholder" />
+              }
             </div>
-          ))}
-        </div>
-      )}
+ 
+            {/* Info */}
+            <div className="alert-info">
+              <div className="alert-cam">{alert.cameraName}</div>
+              <div className="alert-time">
+                {new Date(alert.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </div>
+              <div className={`alert-type ${isDanger ? "alert-type--danger" : "alert-type--safe"}`}>
+                {isDanger ? "INTRUSION DETECTED" : "PERSON DETECTED"}
+              </div>
+ 
+              {/* Expanded view */}
+              {isExpanded && (
+                <div className="alert-expanded" onClick={e => e.stopPropagation()}>
+                  {alert.image && (
+                    <img src={alert.image} alt="full capture" className="alert-expanded-img" />
+                  )}
+                  <div className="alert-expanded-date">
+                    {new Date(alert.timestamp).toLocaleString()}
+                  </div>
+                  <button
+                    className="alert-delete"
+                    onClick={() => handleDelete(id)}
+                    disabled={deleting === id}
+                  >
+                    {deleting === id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
