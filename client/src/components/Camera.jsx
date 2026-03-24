@@ -26,7 +26,7 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {} }
   // וכן את מספר הפנים המזוהות בזמן אמת.
   const { videoRef, imgRef, canvasRef, faceCount } = useCamera({
     ready,
-    authorizedFaces,
+    authorizedFaces: authorizedFaces || [],
     userId,
     ipCameraUrl,
   });
