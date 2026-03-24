@@ -12,10 +12,11 @@ import socket from '../socket';
  * @param {string} props.userId - מזהה המשתמש הנוכחי לצורך שליחת התראות.
  * @returns {Object} { videoRef, canvasRef, faceCount }
  */
-const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
+const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null, cameraId = null }) => {
   const videoRef = useRef(null);
   const imgRef = useRef(null);
   const canvasRef = useRef(null);
+  const recentAlertsRef = useRef([]);
   const [faceCount, setFaceCount] = useState(0);
 
   // אתחול המצלמה
@@ -119,6 +120,11 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
       setFaceCount(detections.length);
 
       if (detections.length > 0) {
+        // Performance: Clean up old alerts from cooldown list (older than 30s)
+        const COOLDOWN_MS = 30000;
+        const now = Date.now();
+        recentAlertsRef.current = recentAlertsRef.current.filter(alert => now - alert.timestamp < COOLDOWN_MS);
+
         detections.forEach((detection) => {
           let isMatchFound = false;
           for (const authorizedFace of authorizedFaces) {
@@ -134,6 +140,16 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
           }
 
           if (!isMatchFound) {
+            // Check if this unknown face was recently alerted (distance < 0.6)
+            const isRecent = recentAlertsRef.current.some(alert => 
+              faceapi.euclideanDistance(detection.descriptor, alert.descriptor) < 0.6
+            );
+
+            if (isRecent) return; // Skip alert if in cooldown
+
+            // Add new unknown face to recent alerts list
+            recentAlertsRef.current.push({ descriptor: detection.descriptor, timestamp: now });
+
             console.warn('Unknown face detected! Sending alert...');
             // Performance and Memory leak fixes: Optimize image quality to reduce payload
             const imageBase64 = canvas.toDataURL('image/jpeg', 0.7);
@@ -143,6 +159,9 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
               image: imageBase64,
               cameraName: ipCameraUrl ? 'IP Camera' : 'Webcam',
               timestamp: new Date().toISOString(),
+              type: 'unknownFace',
+              descriptor: Array.from(detection.descriptor),
+              cameraId: cameraId
             };
 
             socket.emit('alert', alertData);
