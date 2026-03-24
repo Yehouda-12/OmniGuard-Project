@@ -63,11 +63,15 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
     if (!ready || !authorizedFaces) return;
 
     const intervalId = setInterval(async () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+      // Performance and Memory leak fixes: Start TensorFlow scope to manage tensor memory
+      faceapi.tf.engine().startScope();
 
-      let source = null;
-      let width = 0;
+      try {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        let source = null;
+        let width = 0;
       let height = 0;
 
       // מצב IP Camera: נטען מתוך IMG עם crossOrigin כדי למנוע "Tainted Canvas"
@@ -131,7 +135,8 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
 
           if (!isMatchFound) {
             console.warn('Unknown face detected! Sending alert...');
-            const imageBase64 = canvas.toDataURL('image/jpeg');
+            // Performance and Memory leak fixes: Optimize image quality to reduce payload
+            const imageBase64 = canvas.toDataURL('image/jpeg', 0.7);
 
             const alertData = {
               userId: userId,
@@ -144,7 +149,11 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null }) => {
           }
         });
       }
-    }, 3000); // הרצה כל 3 שניות כפי שהוגדר בדרישות הפרויקט
+      } finally {
+        // Performance and Memory leak fixes: End scope to clean up tensors
+        faceapi.tf.engine().endScope();
+      }
+    }, 5000); // Performance and Memory leak fixes: Update interval to 5000ms
 
     return () => clearInterval(intervalId);
   }, [ready, authorizedFaces, userId, ipCameraUrl]);
