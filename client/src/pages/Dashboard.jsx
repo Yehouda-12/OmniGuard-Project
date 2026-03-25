@@ -3,6 +3,7 @@ import { useNavigate } from "react-router"
 import axios from "axios"
 import Camera from "../components/Camera"
 import AlertHistory from "../components/AlertHistory"
+import AlertToast from "../components/AlertToast"
 import socket from "../socket"
 
 const WEBCAM_OPTION = { id: "webcam", name: "Built-in Webcam", url: null, authorizedFaces: [] }
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [dailyData, setDailyData] = useState([])
   const [cameraStats, setCameraStats] = useState([])
   const [statsOpen, setStatsOpen] = useState(false)
+  const [toasts, setToasts] = useState([])
   const [cameras, setCameras] = useState([])
   const [selectedCam, setSelectedCam] = useState(WEBCAM_OPTION)
   const [surveillance, setSurveillance] = useState(false)
@@ -30,7 +32,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     socket.on("alert_received", (data) => {
-      if (data.success) { fetchAlerts(); fetchStats(); fetchHourly(); fetchDaily(); fetchCameraStats() }
+      if (data.success) {
+        fetchAlerts()
+        fetchStats()
+        fetchHourly()
+        fetchDaily()
+        fetchCameraStats()
+        // Show toast for unknown face
+        if (data.type === "unknownFace" || !data.type) {
+          setToasts(prev => [...prev, { ...data, id: Date.now() }])
+        }
+      }
     })
     return () => socket.off("alert_received")
   }, [])
@@ -48,7 +60,7 @@ export default function Dashboard() {
 
   const fetchCameras = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/cameras", config)
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/cameras`, config)
       setCameras(res.data)
     } catch (e) { console.error("Cameras error:", e) }
   }
@@ -56,7 +68,7 @@ export default function Dashboard() {
   const fetchStats = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/summary?user_id=${user?.id || "test"}`, config
+        `${import.meta.env.VITE_API_URL}/api/stats/summary?user_id=${user?.id || "test"}`, config
       )
       setStats(res.data)
     } catch (e) { console.error("Stats error:", e) }
@@ -64,7 +76,7 @@ export default function Dashboard() {
 
   const fetchAlerts = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/alerts", config)
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/alerts`, config)
       setAlerts(res.data)
     } catch (e) { console.error("Alerts error:", e) }
   }
@@ -72,7 +84,7 @@ export default function Dashboard() {
   const fetchHourly = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/hourly?user_id=${user?.id || "test"}`, config
+       `${import.meta.env.VITE_API_URL}/api/stats/hourly?user_id=${user?.id || "test"}`, config
       )
       setHourlyData(res.data)
     } catch (e) { console.error("Hourly error:", e) }
@@ -81,7 +93,7 @@ export default function Dashboard() {
   const fetchDaily = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/daily?user_id=${user?.id || "test"}`, config
+        `${import.meta.env.VITE_API_URL}/api/stats/daily?user_id=${user?.id || "test"}`, config
       )
       setDailyData(res.data)
     } catch (e) { console.error("Daily error:", e) }
@@ -90,7 +102,7 @@ export default function Dashboard() {
   const fetchCameraStats = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/cameras?user_id=${user?.id || "test"}`, config
+        `${import.meta.env.VITE_API_URL}/api/stats/cameras?user_id=${user?.id || "test"}`, config
       )
       setCameraStats(res.data)
     } catch (e) { console.error("Camera stats error:", e) }
@@ -98,7 +110,7 @@ export default function Dashboard() {
 
   const handleExportCSV = () => {
     window.open(
-      `http://localhost:8000/api/stats/csv?user_id=${user?.id || "test"}`,
+      `${import.meta.env.VITE_API_URL}/api/stats/csv?user_id=${user?.id || "test"}`,
       "_blank"
     )
   }
@@ -235,6 +247,7 @@ export default function Dashboard() {
                 authorizedFaces={authorizedFaces}
                 ipCameraUrl={selectedCam?.url || null}
                 cameraName={selectedCam?.name || "Webcam"}
+                 cameraId={selectedCam?.id}
               />
             ) : (
               <div className="cam-placeholder">
@@ -359,6 +372,22 @@ export default function Dashboard() {
         </aside>
 
       </div>
+      {/* ── Toast notifications ── */}
+      <div className="toast-container">
+        {toasts.map(toast => (
+          <AlertToast
+            key={toast.id}
+            alert={toast}
+            token={token}
+            onDismiss={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+            onAuthorized={(name) => {
+              setToasts(prev => prev.filter(t => t.id !== toast.id))
+              fetchCameras()
+            }}
+          />
+        ))}
+      </div>
+
     </div>
   )
 }

@@ -42,29 +42,41 @@ def register_events(sio):
                     "image":      data.get("image"),
                     "timestamp":  data.get("timestamp", datetime.utcnow().isoformat()),
                     "type":       data.get("type", "unknownFace"),
+                     "descriptor": data.get("descriptor"),   
+    "cameraId":   data.get("cameraId"), 
                 }
                 result = await alerts_collection.insert_one(alert_doc)
                 print(f"💾 Alert saved to MongoDB: {result.inserted_id}")
             except Exception as db_error:
                 print(f"⚠️ MongoDB error: {db_error}")
 
-            # 3. Récupérer l'email de l'user et envoyer
-            try:
-                user = await users_collection.find_one({"_id": ObjectId(data.get("userId"))})
-                alert_email = user.get("alertEmail") if user else None
-                # alert_email = user.get("alertEmail") or "coheny748@gmail.com"
-                if alert_email:
-                    send_alert_email(
-                        image_base64=data.get("image"),
-                        camera_name=data.get("cameraName"),
-                        timestamp=data.get("timestamp"),
-                        alert_email=alert_email
-                    )
-            except Exception as email_error:
-                print(f"⚠️ Email error: {email_error}")
-          
+           # Only send email for unknown faces
+            if data.get("type") != "knownFace":
+                try:
+                    user = await users_collection.find_one({"_id": ObjectId(data.get("userId"))})
+                    alert_email = user.get("alertEmail") if user else None
+                    if alert_email:
+                        send_alert_email(
+                            image_base64=data.get("image"),
+                            camera_name=data.get("cameraName"),
+                            timestamp=data.get("timestamp"),
+                            alert_email=alert_email
+                        )
+                except Exception as email_error:
+                    print(f"⚠️ Email error: {email_error}")
+            else:
+                print(f"✅ Known face — no email sent")
+                    
             # 4. Confirmer au frontend
-            await sio.emit("alert_received", {"success": True}, to=sid)
+            await sio.emit("alert_received", {
+    "success":    True,
+    "descriptor": data.get("descriptor"),
+    "cameraId":   data.get("cameraId"),
+    "image":      data.get("image"),
+    "cameraName": data.get("cameraName"),
+    "timestamp":  data.get("timestamp"),
+    "type":       data.get("type"),
+}, to=sid)
 
         except Exception as e:
             print(f"❌ Error handling alert: {e}")
