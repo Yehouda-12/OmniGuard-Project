@@ -1,0 +1,27 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: omniguard-backend
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: omniguard-backend
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/Yehouda-12/OmniGuard-Project.git
+      ref: feature/israel
+    contextDir: .
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: server/Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: omniguard-backend:latest
+  triggers:
+    - type: ConfigChange
+    - type: ImageChange

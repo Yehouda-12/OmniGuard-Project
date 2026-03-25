@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: omniguard-frontend
+spec:
+  selector:
+    app: omniguard-frontend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+

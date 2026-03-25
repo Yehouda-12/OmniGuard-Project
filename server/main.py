@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 import httpx
-import os
 
 load_dotenv()
 
@@ -23,14 +22,20 @@ app.add_middleware(
 )
 
 # ─── Import routers (Israel + Danny) ─────────────────────────────────────────
-from routers import auth, alerts, cameras, stats
+try:
+    from routers import auth, alerts, cameras, stats
+except ImportError:
+    from server.routers import auth, alerts, cameras, stats
 app.include_router(auth.router,    prefix="/api/auth",    tags=["auth"])
 app.include_router(alerts.router,  prefix="/api/alerts",  tags=["alerts"])
 app.include_router(cameras.router, prefix="/api/cameras", tags=["cameras"])
 app.include_router(stats.router,   prefix="/api/stats",   tags=["stats"])
 
 # ─── Import socket handler (Yehouda) ─────────────────────────────────────────
-from socket_handler import register_events
+try:
+    from socket_handler import register_events
+except ImportError:
+    from server.socket_handler import register_events
 register_events(sio)
 
 # ─── Route : relay IP camera stream (fixes CORS) ──────────────────────────────

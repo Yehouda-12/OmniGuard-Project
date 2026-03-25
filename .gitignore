@@ -18,6 +18,7 @@ server/.venv/
 # Environment files
 .env
 *.env
+openshift/backend-secret.yaml
 
 # Node
 node_modules/

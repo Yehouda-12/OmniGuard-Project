@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: omniguard-frontend
+spec:
+  to:
+    kind: Service
+    name: omniguard-frontend
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+

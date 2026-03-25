@@ -10,3 +10,4 @@ python-dotenv==1.2.2
 pydantic==2.12.5
 httpx
 yagmail==0.15.293
+pandas

@@ -5,7 +5,10 @@ import pandas as pd
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from database import alerts_collection
+try:
+    from database import alerts_collection
+except ImportError:
+    from server.database import alerts_collection
 
 router = APIRouter(tags=["stats"])
 
