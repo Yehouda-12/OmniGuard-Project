@@ -710,3 +710,7 @@ select.auth-input option { background: var(--bg-elevated); color: var(--text-pri
 .toast-btn--primary:hover { opacity: .88; }
 .toast-btn:disabled { opacity: .4; cursor: not-allowed; }
 .toast-naming { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Known face — green ── */
+.alert-item--known { border-color: rgba(62,207,110,.3); background: rgba(62,207,110,.04); }
+.alert-type--known { color: var(--accent-green); }

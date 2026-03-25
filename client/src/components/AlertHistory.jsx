@@ -76,13 +76,14 @@ export default function AlertHistory({ alerts, onDelete, token }) {
       {alerts.map((alert) => {
         const id = alert.id || alert._id
         const isDanger = alert.type === "unknownFace"
+const isKnown  = alert.type === "knownFace"
         const isExpanded = expanded === id
         const isAddingFace = addingFace === id
 
         return (
           <div
             key={id}
-            className={`alert-item ${isDanger ? "alert-item--danger" : ""}`}
+            className={`alert-item ${isDanger ? "alert-item--danger" : isKnown ? "alert-item--known" : ""}`}
           >
             {/* Main row — clickable to expand */}
             <div
@@ -101,9 +102,9 @@ export default function AlertHistory({ alerts, onDelete, token }) {
                     hour: "2-digit", minute: "2-digit", second: "2-digit"
                   })}
                 </div>
-                <div className={`alert-type ${isDanger ? "alert-type--danger" : "alert-type--safe"}`}>
-                  {isDanger ? "INTRUSION DETECTED" : "PERSON DETECTED"}
-                </div>
+               <div className={`alert-type ${isDanger ? "alert-type--danger" : isKnown ? "alert-type--known" : "alert-type--safe"}`}>
+  {isDanger ? "INTRUSION DETECTED" : isKnown ? "AUTHORIZED PERSON" : "PERSON DETECTED"}
+</div>
               </div>
             </div>
 

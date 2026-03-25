@@ -1,196 +1,7 @@
-import { useRef, useEffect, useState } from 'react'
-import * as faceapi from 'face-api.js'
-import socket from '../socket'
 
-const COOLDOWN_MS = 30000
-const DETECT_INTERVAL_MS = 5000
 
-const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null, cameraId = null }) => {
-  const videoRef        = useRef(null)
-  const imgRef          = useRef(null)
-  const canvasRef       = useRef(null)
-  const recentAlertsRef = useRef([])
-  const isDetectingRef  = useRef(false) // prevent overlapping detections
-  const timeoutRef      = useRef(null)
 
-  const [faceCount, setFaceCount] = useState(0)
 
-  // ── Start webcam ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!ready || ipCameraUrl) return
-    let stream = null
-
-    const startVideo = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 640, height: 480, frameRate: 30 }
-        })
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          await videoRef.current.play()
-        }
-      } catch (err) {
-        console.error('Webcam error:', err)
-      }
-    }
-
-    startVideo()
-    return () => { if (stream) stream.getTracks().forEach(t => t.stop()) }
-  }, [ready, ipCameraUrl])
-
-  // ── Set IP camera ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!ready || !ipCameraUrl || !imgRef.current) return
-    imgRef.current.crossOrigin = 'anonymous'
-    imgRef.current.src = ipCameraUrl
-    return () => { if (imgRef.current) imgRef.current.src = '' }
-  }, [ready, ipCameraUrl])
-
-  // ── Detection loop ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!ready) return
-
-    // Use inputSize 128 instead of 224 — 3x faster, still accurate enough
-    const options = new faceapi.TinyFaceDetectorOptions({
-      inputSize: 128,
-      scoreThreshold: 0.5
-    })
-
-    const detect = async () => {
-      // Skip if previous detection is still running
-      if (isDetectingRef.current) return
-      isDetectingRef.current = true
-
-      try {
-        const canvas = canvasRef.current
-        if (!canvas) return
-
-        // ── Get source ──
-        let source, width, height
-
-        if (ipCameraUrl) {
-          const img = imgRef.current
-          if (!img || !img.complete || img.naturalWidth === 0) return
-          source = img
-          width  = img.naturalWidth
-          height = img.naturalHeight
-        } else {
-          const video = videoRef.current
-          if (!video || video.paused || video.ended || video.videoWidth === 0) return
-          source = video
-          width  = video.videoWidth
-          height = video.videoHeight
-        }
-
-        if (!source || width === 0 || height === 0) return
-
-        // ── Yield to browser before heavy computation ──
-        // This lets the video frame render before we block the thread
-        await new Promise(r => setTimeout(r, 0))
-
-        // ── Draw frame ──
-        canvas.width  = width
-        canvas.height = height
-        canvas.getContext('2d').drawImage(source, 0, 0, width, height)
-
-        // ── Yield again before face detection ──
-        await new Promise(r => setTimeout(r, 0))
-
-        // ── Detect faces inside tf scope to prevent memory leak ──
-        let detections = []
-        faceapi.tf.engine().startScope()
-        try {
-          detections = await faceapi
-            .detectAllFaces(source, options)
-            .withFaceLandmarks()
-            .withFaceDescriptors()
-        } finally {
-          faceapi.tf.engine().endScope()
-        }
-
-        setFaceCount(detections.length)
-        if (detections.length === 0) return
-
-        // ── Cooldown cleanup ──
-        const now = Date.now()
-        recentAlertsRef.current = recentAlertsRef.current.filter(
-          e => now - e.timestamp < COOLDOWN_MS
-        )
-
-        // ── Check each face ──
-        detections.forEach(detection => {
-          // 1. Is this face authorized?
-          if (authorizedFaces && authorizedFaces.length > 0) {
-            for (const face of authorizedFaces) {
-              const dist = faceapi.euclideanDistance(
-                detection.descriptor,
-                new Float32Array(face)
-              )
-              if (dist < 0.6) return // known face → skip
-            }
-          }
-
-          // 2. Is this face in cooldown?
-          const inCooldown = recentAlertsRef.current.some(e =>
-            faceapi.euclideanDistance(detection.descriptor, e.descriptor) < 0.6
-          )
-          if (inCooldown) {
-            console.log('Same face in cooldown — skipping')
-            return
-          }
-
-          // 3. New unknown face → alert !
-          console.warn('Unknown face → sending alert')
-
-          recentAlertsRef.current.push({
-            descriptor: detection.descriptor,
-            timestamp: now
-          })
-
-          // Capture photo
-          const imageBase64 = canvas.toDataURL('image/jpeg', 0.7)
-
-          socket.emit('alert', {
-            userId,
-            image: imageBase64,
-            cameraName: ipCameraUrl ? 'IP Camera' : 'Webcam',
-            cameraId,
-            timestamp: new Date().toISOString(),
-            type: 'unknownFace',
-            descriptor: Array.from(detection.descriptor)
-          })
-        })
-
-      } catch (e) {
-        console.error('Detection error:', e)
-      } finally {
-        isDetectingRef.current = false
-      }
-    }
-
-    // Schedule detection every 5s
-    // Using setTimeout loop instead of setInterval to prevent stacking
-    const schedule = () => {
-      timeoutRef.current = setTimeout(async () => {
-        await detect()
-        schedule() // reschedule after detection completes
-      }, DETECT_INTERVAL_MS)
-    }
-
-    schedule()
-
-    return () => {
-      clearTimeout(timeoutRef.current)
-      recentAlertsRef.current = []
-      isDetectingRef.current = false
-      try { faceapi.tf.disposeVariables() } catch (_) {}
-    }
-  }, [ready, authorizedFaces, userId, ipCameraUrl, cameraId])
-
-  return { videoRef, imgRef, canvasRef, faceCount }
-}
-
-export default useCamera
 // import { useRef, useEffect, useState } from 'react';
 // import * as faceapi from 'face-api.js';
 // import socket from '../socket';
@@ -412,3 +223,214 @@ export default useCamera
 // };
 
 // export default useCamera;
+
+
+
+import { useRef, useEffect, useState } from 'react';
+import * as faceapi from 'face-api.js';
+import socket from '../socket';
+
+const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null, cameraId = null }) => {
+  const videoRef = useRef(null);
+  const imgRef = useRef(null);
+  const canvasRef = useRef(null);
+  const recentAlertsRef = useRef([]);
+  const recentKnownRef = useRef([]); // cooldown for known faces too
+  const isActive = useRef(true);
+  const isProcessing = useRef(false);
+  const [faceCount, setFaceCount] = useState(0);
+
+  useEffect(() => {
+    if (!ready) return;
+    let stream = null;
+
+    if (ipCameraUrl) {
+      if (imgRef.current) {
+        imgRef.current.crossOrigin = 'anonymous';
+        imgRef.current.src = ipCameraUrl;
+      }
+      return;
+    }
+
+    const startVideo = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.error('Error accessing webcam:', err);
+      }
+    };
+
+    startVideo();
+
+    return () => {
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      if (ipCameraUrl && imgRef.current) imgRef.current.src = '';
+    };
+  }, [ready, ipCameraUrl, cameraId]);
+
+  useEffect(() => {
+    if (!ready || !authorizedFaces) return;
+
+    isActive.current = true;
+
+    const runDetection = async () => {
+      if (!isActive.current || isProcessing.current) return;
+      isProcessing.current = true;
+
+      try {
+        let detections = [];
+        let source = null;
+        let width = 0;
+        let height = 0;
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        if (ipCameraUrl) {
+          if (!imgRef.current || !imgRef.current.complete) return;
+          imgRef.current.crossOrigin = 'anonymous';
+          source = imgRef.current;
+          width = imgRef.current.naturalWidth;
+          height = imgRef.current.naturalHeight;
+        } else {
+          if (
+            !videoRef.current ||
+            videoRef.current.paused ||
+            videoRef.current.ended ||
+            videoRef.current.videoWidth === 0 ||
+            videoRef.current.videoHeight === 0
+          ) return;
+          source = videoRef.current;
+          width = videoRef.current.videoWidth;
+          height = videoRef.current.videoHeight;
+        }
+
+        if (!source || width === 0 || height === 0) return;
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        faceapi.tf.engine().startScope();
+        try {
+          const results = await faceapi
+            .detectAllFaces(source, new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 }))
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+
+          setFaceCount(results.length);
+
+          detections = results.map(det => ({
+            descriptor: Array.from(det.descriptor)
+          }));
+        } catch (err) {
+          console.error('Detection error:', err);
+        } finally {
+          faceapi.tf.engine().endScope();
+        }
+
+        if (detections.length > 0) {
+          const COOLDOWN_MS = 30000;
+          const now = Date.now();
+
+          // Clean cooldown lists
+          recentAlertsRef.current = recentAlertsRef.current.filter(a => now - a.timestamp < COOLDOWN_MS);
+          recentKnownRef.current  = recentKnownRef.current.filter(a => now - a.timestamp < COOLDOWN_MS);
+
+          detections.forEach((detection) => {
+            let isMatchFound = false;
+            let matchedName = null;
+
+            // Check against authorized faces
+            for (const authorizedFace of authorizedFaces) {
+              const authorizedDescriptor = new Float32Array(authorizedFace);
+              const distance = faceapi.euclideanDistance(
+                detection.descriptor,
+                authorizedDescriptor
+              );
+              if (distance < 0.6) {
+                isMatchFound = true;
+                break;
+              }
+            }
+
+            // Capture image for both cases
+            const captureImage = () => {
+              if (!canvas || !source) return null;
+              canvas.width = width;
+              canvas.height = height;
+              canvas.getContext('2d').drawImage(source, 0, 0, width, height);
+              return canvas.toDataURL('image/jpeg', 0.6);
+            };
+
+            if (isMatchFound) {
+              // ── Known face ──
+              const inCooldown = recentKnownRef.current.some(a =>
+                faceapi.euclideanDistance(detection.descriptor, a.descriptor) < 0.6
+              );
+              if (inCooldown) return;
+
+              recentKnownRef.current.push({ descriptor: detection.descriptor, timestamp: now });
+              console.log('✅ Known face detected');
+
+              const imageBase64 = captureImage();
+              if (imageBase64) {
+                socket.emit('alert', {
+                  userId,
+                  image: imageBase64,
+                  cameraName: ipCameraUrl ? 'IP Camera' : 'Webcam',
+                  timestamp: new Date().toISOString(),
+                  type: 'knownFace',  // ← green in history, no email
+                  descriptor: detection.descriptor,
+                  cameraId
+                });
+              }
+
+            } else {
+              // ── Unknown face ──
+              const inCooldown = recentAlertsRef.current.some(a =>
+                faceapi.euclideanDistance(detection.descriptor, a.descriptor) < 0.6
+              );
+              if (inCooldown) return;
+
+              recentAlertsRef.current.push({ descriptor: detection.descriptor, timestamp: now });
+              console.warn('🚨 Unknown face detected!');
+
+              const imageBase64 = captureImage();
+              if (imageBase64) {
+                socket.emit('alert', {
+                  userId,
+                  image: imageBase64,
+                  cameraName: ipCameraUrl ? 'IP Camera' : 'Webcam',
+                  timestamp: new Date().toISOString(),
+                  type: 'unknownFace',
+                  descriptor: detection.descriptor,
+                  cameraId
+                });
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('General detection error:', err);
+      } finally {
+        isProcessing.current = false;
+        if (isActive.current) {
+          setTimeout(runDetection, 5000);
+        }
+      }
+    };
+
+    runDetection();
+
+    return () => { isActive.current = false; };
+  }, [ready, authorizedFaces, userId, ipCameraUrl, cameraId]);
+
+  return { videoRef, imgRef, canvasRef, faceCount };
+};
+
+export default useCamera;
+
+
+

@@ -50,21 +50,23 @@ def register_events(sio):
             except Exception as db_error:
                 print(f"⚠️ MongoDB error: {db_error}")
 
-            # 3. Récupérer l'email de l'user et envoyer
-            try:
-                user = await users_collection.find_one({"_id": ObjectId(data.get("userId"))})
-                alert_email = user.get("alertEmail") if user else None
-                # alert_email = user.get("alertEmail") or "coheny748@gmail.com"
-                if alert_email:
-                    send_alert_email(
-                        image_base64=data.get("image"),
-                        camera_name=data.get("cameraName"),
-                        timestamp=data.get("timestamp"),
-                        alert_email=alert_email
-                    )
-            except Exception as email_error:
-                print(f"⚠️ Email error: {email_error}")
-          
+           # Only send email for unknown faces
+            if data.get("type") != "knownFace":
+                try:
+                    user = await users_collection.find_one({"_id": ObjectId(data.get("userId"))})
+                    alert_email = user.get("alertEmail") if user else None
+                    if alert_email:
+                        send_alert_email(
+                            image_base64=data.get("image"),
+                            camera_name=data.get("cameraName"),
+                            timestamp=data.get("timestamp"),
+                            alert_email=alert_email
+                        )
+                except Exception as email_error:
+                    print(f"⚠️ Email error: {email_error}")
+            else:
+                print(f"✅ Known face — no email sent")
+                    
             # 4. Confirmer au frontend
             await sio.emit("alert_received", {
     "success":    True,
