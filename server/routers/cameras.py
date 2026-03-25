@@ -2,7 +2,7 @@ from typing import List
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 try:
     from database import users_collection
@@ -19,7 +19,7 @@ router = APIRouter( tags=["cameras"])
 class CameraUpdateRequest(BaseModel):
     name: str
     url: str
-    authorizedFaces: List[AuthorizedFace] = []
+    authorizedFaces: List[AuthorizedFace] = Field(default_factory=list)
 
 
 def serialize_camera(camera: dict) -> dict:
@@ -55,28 +55,26 @@ async def update_camera(
     current_user: dict = Depends(get_current_user),
 ):
     cameras = current_user.get("cameras", [])
-    updated_camera = None
-
-    for existing_camera in cameras:
-        if existing_camera.get("id") == id:
-            existing_camera["name"] = camera.name
-            existing_camera["url"] = camera.url
-            existing_camera["authorizedFaces"] = [
-                face.model_dump() if hasattr(face, "model_dump") else face
-                for face in camera.authorizedFaces
-            ]
-            updated_camera = existing_camera
-            break
-
-    if updated_camera is None:
+    existing_camera = next((cam for cam in cameras if cam.get("id") == id), None)
+    if existing_camera is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Camera not found",
         )
 
+    updated_camera = {
+        "id": id,
+        "name": camera.name,
+        "url": camera.url,
+        "authorizedFaces": [
+            face.model_dump() if hasattr(face, "model_dump") else face
+            for face in camera.authorizedFaces
+        ],
+    }
+
     await users_collection.update_one(
-        {"_id": current_user["_id"]},
-        {"$set": {"cameras": cameras}},
+        {"_id": current_user["_id"], "cameras.id": id},
+        {"$set": {"cameras.$": updated_camera}},
     )
     return serialize_camera(updated_camera)
 

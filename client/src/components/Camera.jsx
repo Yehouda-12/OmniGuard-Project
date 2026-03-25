@@ -29,7 +29,8 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {}, 
     authorizedFaces,
     userId,
     ipCameraUrl,
-    cameraId
+    cameraId,
+    cameraName,
   });
 
   const [isAlerting, setIsAlerting] = useState(false);

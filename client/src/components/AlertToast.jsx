@@ -30,6 +30,16 @@ return
         { name: name.trim(), descriptor: alert.descriptor }
       ]
 
+      const alreadyAuthorized = (camera.authorizedFaces || []).some((face) => {
+        const current = JSON.stringify(face.descriptor || [])
+        const incoming = JSON.stringify(alert.descriptor || [])
+        return current === incoming
+      })
+      if (alreadyAuthorized) {
+        onAuthorized(name.trim())
+        return
+      }
+
       await axios.put(
         apiUrl(`/api/cameras/${alert.cameraId}`),
         { name: camera.name, url: camera.url, authorizedFaces: updatedFaces },

@@ -2,7 +2,7 @@ import { useState } from "react"
 import axios from "axios"
 import { apiUrl } from "../lib/api"
 
-export default function AlertHistory({ alerts, onDelete, token }) {
+export default function AlertHistory({ alerts, onDelete, onAuthorized, token }) {
   const [deleting, setDeleting] = useState(null)
   const [expanded, setExpanded] = useState(null)
   const [addingFace, setAddingFace] = useState(null) // alert id
@@ -48,6 +48,18 @@ export default function AlertHistory({ alerts, onDelete, token }) {
         { name: faceName.trim(), descriptor: alert.descriptor }
       ]
 
+      const alreadyAuthorized = (camera.authorizedFaces || []).some((face) => {
+        const current = JSON.stringify(face.descriptor || [])
+        const incoming = JSON.stringify(alert.descriptor || [])
+        return current === incoming
+      })
+      if (alreadyAuthorized) {
+        setAddingFace(null)
+        setFaceName("")
+        onAuthorized?.()
+        return
+      }
+
       await axios.put(
         apiUrl(`/api/cameras/${alert.cameraId}`),
         { name: camera.name, url: camera.url, authorizedFaces: updatedFaces },
@@ -56,6 +68,7 @@ export default function AlertHistory({ alerts, onDelete, token }) {
 
       setAddingFace(null)
       setFaceName("")
+      onAuthorized?.()
       window.alert(`✓ "${faceName}" added to authorized faces!`)
     } catch (e) {
       window.alert("Error saving face: " + e.message)

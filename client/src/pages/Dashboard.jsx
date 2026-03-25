@@ -32,9 +32,18 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
+    if (!selectedCam?.id || selectedCam.id === WEBCAM_OPTION.id) return
+    const refreshedCamera = cameras.find((camera) => camera.id === selectedCam.id)
+    if (refreshedCamera) {
+      setSelectedCam(refreshedCamera)
+    }
+  }, [cameras, selectedCam?.id])
+
+  useEffect(() => {
     socket.on("alert_received", (data) => {
       if (data.success) {
         fetchAlerts()
+        fetchCameras()
         fetchStats()
         fetchHourly()
         fetchDaily()
@@ -369,7 +378,15 @@ export default function Dashboard() {
             <span>Alert History</span>
             <span className="alert-count">{alerts.length}</span>
           </div>
-          <AlertHistory alerts={alerts} onDelete={fetchAlerts} token={token} />
+          <AlertHistory
+            alerts={alerts}
+            onDelete={fetchAlerts}
+            onAuthorized={() => {
+              fetchCameras()
+              fetchAlerts()
+            }}
+            token={token}
+          />
         </aside>
 
       </div>
@@ -384,6 +401,7 @@ export default function Dashboard() {
             onAuthorized={(name) => {
               setToasts(prev => prev.filter(t => t.id !== toast.id))
               fetchCameras()
+              fetchAlerts()
             }}
           />
         ))}

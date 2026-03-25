@@ -230,7 +230,14 @@ import { useRef, useEffect, useState } from 'react';
 import * as faceapi from 'face-api.js';
 import socket from '../socket';
 
-const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null, cameraId = null }) => {
+const useCamera = ({
+  ready,
+  authorizedFaces,
+  userId,
+  ipCameraUrl = null,
+  cameraId = null,
+  cameraName = null,
+}) => {
   const videoRef = useRef(null);
   const imgRef = useRef(null);
   const canvasRef = useRef(null);
@@ -379,7 +386,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null, cameraI
                 socket.emit('alert', {
                   userId,
                   image: imageBase64,
-                  cameraName: ipCameraUrl ? 'IP Camera' : 'Webcam',
+                  cameraName: cameraName || (ipCameraUrl ? 'IP Camera' : 'Webcam'),
                   timestamp: new Date().toISOString(),
                   type: 'knownFace',  // ← green in history, no email
                   descriptor: detection.descriptor,
@@ -402,7 +409,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null, cameraI
                 socket.emit('alert', {
                   userId,
                   image: imageBase64,
-                  cameraName: ipCameraUrl ? 'IP Camera' : 'Webcam',
+                  cameraName: cameraName || (ipCameraUrl ? 'IP Camera' : 'Webcam'),
                   timestamp: new Date().toISOString(),
                   type: 'unknownFace',
                   descriptor: detection.descriptor,
@@ -425,7 +432,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null, cameraI
     runDetection();
 
     return () => { isActive.current = false; };
-  }, [ready, authorizedFaces, userId, ipCameraUrl, cameraId]);
+  }, [ready, authorizedFaces, userId, ipCameraUrl, cameraId, cameraName]);
 
   return { videoRef, imgRef, canvasRef, faceCount };
 };
