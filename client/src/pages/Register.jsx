@@ -14,7 +14,9 @@ export default function Register() {
     setLoading(true)
     try {
       await axios.post("http://localhost:8000/api/auth/register", inputs)
-      navigate("/login")
+      localStorage.setItem("token", res.data.jwt)  
+      localStorage.setItem("user", JSON.stringify(res.data.user))
+      navigate("/dashboard")
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed")
     } finally {
