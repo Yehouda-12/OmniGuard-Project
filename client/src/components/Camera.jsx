@@ -20,13 +20,13 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {}, 
   const activeTheme = { ...defaultTheme, ...theme };
 
   // 1. Integration Logic
-  const { ready, error: apiError } = useFaceApi();
+  // const { ready, error: apiError } = useFaceApi();
   
   // חיבור ל-Hook של המצלמה שמחזיר הפניות (Refs) לאלמנטים של הוידאו/תמונה והקנבס,
   // וכן את מספר הפנים המזוהות בזמן אמת.
   const { videoRef, imgRef, canvasRef, faceCount } = useCamera({
-    ready,
-    authorizedFaces,
+    ready: true,
+   
     userId,
     ipCameraUrl,
     cameraId
@@ -113,13 +113,7 @@ const Camera = ({ userId, authorizedFaces, ipCameraUrl, cameraName, theme = {}, 
   const canvasStyle = layoutStyles.overlay;
   const mediaStyle = visualStyles.media;
 
-  if (!ready) {
-    return (
-      <div style={containerStyle}>
-        <div style={{ color: activeTheme.borderColor }}>Initializing AI Models...</div>
-      </div>
-    );
-  }
+  
 
   return (
     <div style={containerStyle}>
