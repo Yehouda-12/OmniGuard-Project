@@ -24,11 +24,13 @@ TOKEN_EXPIRE_HOURS = 24
 
 
 class LoginRequest(BaseModel):
+    """Pydantic model for login credentials."""
     email: str
     password: str
 
 
 def create_access_token(user_id: str, email: str) -> str:
+    """Generates a JWT access token for the authenticated user."""
     payload = {
         "sub": user_id,
         "email": email,
@@ -38,6 +40,7 @@ def create_access_token(user_id: str, email: str) -> str:
 
 
 def serialize_user(user: dict) -> dict:
+    """Serializes a MongoDB user document for API response."""
     return {
         "id": str(user["_id"]),
         "name": user["name"],
@@ -52,6 +55,7 @@ def serialize_user(user: dict) -> dict:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ):
+    """Dependency to retrieve the current user from the JWT bearer token."""
     token = credentials.credentials
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -80,6 +84,7 @@ async def get_current_user(
 
 @router.post("/register")
 async def register(user: User):
+    """Registers a new user account with hashed password."""
     existing_user = await users_collection.find_one({"email": user.email})
     if existing_user:
         raise HTTPException(
@@ -102,6 +107,7 @@ async def register(user: User):
 
 @router.post("/login")
 async def login(credentials: LoginRequest):
+    """Authenticates a user and returns a JWT."""
     user = await users_collection.find_one({"email": credentials.email})
     if not user:
         raise HTTPException(

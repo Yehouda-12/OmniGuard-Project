@@ -18,6 +18,7 @@ router = APIRouter(tags=["alerts"])
 
 
 def serialize_alert(alert: dict) -> dict:
+    """Converts MongoDB alert document to JSON serializable dictionary."""
     return {
         "id": str(alert["_id"]),
         "userId": alert["userId"],
@@ -32,6 +33,7 @@ def serialize_alert(alert: dict) -> dict:
 
 @router.get("")
 async def get_alerts(current_user: dict = Depends(get_current_user)):
+    """Retrieves all security alerts for the authenticated user."""
     alerts = await alerts_collection.find(
         {"userId": str(current_user["_id"])}
     ).to_list(None)
@@ -40,6 +42,7 @@ async def get_alerts(current_user: dict = Depends(get_current_user)):
 
 @router.get("/today")
 async def get_today_alerts(current_user: dict = Depends(get_current_user)):
+    """Retrieves security alerts generated during the current date."""
     today = datetime.now().date().isoformat()
     alerts = await alerts_collection.find(
         {
@@ -52,6 +55,7 @@ async def get_today_alerts(current_user: dict = Depends(get_current_user)):
 
 @router.delete("/{id}")
 async def delete_alert(id: str, current_user: dict = Depends(get_current_user)):
+    """Deletes a specific alert by its unique identifier."""
     print(f"Trying to delete: {id} for user: {str(current_user['_id'])}")
     if not ObjectId.is_valid(id):
         raise HTTPException(
@@ -73,6 +77,7 @@ async def delete_alert(id: str, current_user: dict = Depends(get_current_user)):
 
 @router.post("")
 async def create_alert(alert: Alert, current_user: dict = Depends(get_current_user)):
+    """Records a new security alert and triggers email notification if applicable."""
     alert_document = alert.model_dump()
     alert_document["userId"] = str(current_user["_id"])
 

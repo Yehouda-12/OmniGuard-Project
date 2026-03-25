@@ -6,22 +6,25 @@ import base64
 import os
 
 def register_events(sio):
-
+    """Registers Socket.io event handlers for real-time security events."""
+    
     @sio.event
     async def connect(sid, environ):
+        """Handles new socket client connections."""
         print(f"✅ Client connected: {sid}")
 
     @sio.event
     async def disconnect(sid):
+        """Handles socket client disconnections."""
         print(f"❌ Client disconnected: {sid}")
 
     @sio.event
     async def alert(sid, data):
+        """Handles incoming real-time alert frames from camera clients."""
         print(f"📸 Alert received from camera: {data.get('cameraName')} at {data.get('timestamp')}")
      
-
         try:
-            # 1. Sauvegarder image dans /captures
+            # Persist captured frame to local file system
             captures_dir = os.path.join(os.path.dirname(__file__), "captures")
             os.makedirs(captures_dir, exist_ok=True)
 
@@ -34,7 +37,7 @@ def register_events(sio):
                     f.write(image_bytes)
                 print(f"📁 Image saved: {filename}")
 
-            # 2. Sauvegarder dans MongoDB
+            # Persist alert metadata and descriptors to MongoDB
             try:
                 alert_doc = {
                     "userId":     data.get("userId"),
@@ -50,7 +53,7 @@ def register_events(sio):
             except Exception as db_error:
                 print(f"⚠️ MongoDB error: {db_error}")
 
-           # Only send email for unknown faces
+            # Trigger SMTP notification exclusively for intruder detection
             if data.get("type") != "knownFace":
                 try:
                     user = await users_collection.find_one({"_id": ObjectId(data.get("userId"))})
@@ -67,7 +70,7 @@ def register_events(sio):
             else:
                 print(f"✅ Known face — no email sent")
                     
-            # 4. Confirmer au frontend
+            # Acknowledge event processing to the originating client
             await sio.emit("alert_received", {
     "success":    True,
     "descriptor": data.get("descriptor"),
