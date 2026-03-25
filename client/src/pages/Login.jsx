@@ -13,7 +13,7 @@ export default function Login() {
     setError(null)
     setLoading(true)
     try {
-      const res = await axios.post("http://localhost:8000/api/auth/login", {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
         email: inputs.email,
         password: inputs.password
       })

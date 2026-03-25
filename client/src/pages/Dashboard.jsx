@@ -60,7 +60,7 @@ export default function Dashboard() {
 
   const fetchCameras = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/cameras", config)
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/cameras`, config)
       setCameras(res.data)
     } catch (e) { console.error("Cameras error:", e) }
   }
@@ -68,7 +68,7 @@ export default function Dashboard() {
   const fetchStats = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/summary?user_id=${user?.id || "test"}`, config
+        `${import.meta.env.VITE_API_URL}/api/stats/summary?user_id=${user?.id || "test"}`, config
       )
       setStats(res.data)
     } catch (e) { console.error("Stats error:", e) }
@@ -76,7 +76,7 @@ export default function Dashboard() {
 
   const fetchAlerts = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/alerts", config)
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/alerts`, config)
       setAlerts(res.data)
     } catch (e) { console.error("Alerts error:", e) }
   }
@@ -84,7 +84,7 @@ export default function Dashboard() {
   const fetchHourly = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/hourly?user_id=${user?.id || "test"}`, config
+       `${import.meta.env.VITE_API_URL}/api/stats/hourly?user_id=${user?.id || "test"}`, config
       )
       setHourlyData(res.data)
     } catch (e) { console.error("Hourly error:", e) }
@@ -93,7 +93,7 @@ export default function Dashboard() {
   const fetchDaily = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/daily?user_id=${user?.id || "test"}`, config
+        `${import.meta.env.VITE_API_URL}/api/stats/daily?user_id=${user?.id || "test"}`, config
       )
       setDailyData(res.data)
     } catch (e) { console.error("Daily error:", e) }
@@ -102,7 +102,7 @@ export default function Dashboard() {
   const fetchCameraStats = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:8000/api/stats/cameras?user_id=${user?.id || "test"}`, config
+        `${import.meta.env.VITE_API_URL}/api/stats/cameras?user_id=${user?.id || "test"}`, config
       )
       setCameraStats(res.data)
     } catch (e) { console.error("Camera stats error:", e) }
@@ -110,7 +110,7 @@ export default function Dashboard() {
 
   const handleExportCSV = () => {
     window.open(
-      `http://localhost:8000/api/stats/csv?user_id=${user?.id || "test"}`,
+      `${import.meta.env.VITE_API_URL}/api/stats/csv?user_id=${user?.id || "test"}`,
       "_blank"
     )
   }

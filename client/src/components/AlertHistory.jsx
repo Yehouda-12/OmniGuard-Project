@@ -12,7 +12,7 @@ export default function AlertHistory({ alerts, onDelete, token }) {
     if (!window.confirm("Delete this alert?")) return
     setDeleting(id)
     try {
-      await axios.delete(`http://localhost:8000/api/alerts/${id}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/alerts/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       onDelete()
@@ -33,7 +33,7 @@ export default function AlertHistory({ alerts, onDelete, token }) {
     setSaving(true)
     try {
       // Get current camera
-      const res = await axios.get("http://localhost:8000/api/cameras", {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}:8000/api/cameras`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       const camera = res.data.find(c => c.id === alert.cameraId)
@@ -48,7 +48,7 @@ export default function AlertHistory({ alerts, onDelete, token }) {
       ]
 
       await axios.put(
-        `http://localhost:8000/api/cameras/${alert.cameraId}`,
+        `${import.meta.env.VITE_API_URL}/api/cameras/${alert.cameraId}`,
         { name: camera.name, url: camera.url, authorizedFaces: updatedFaces },
         { headers: { Authorization: `Bearer ${token}` } }
       )

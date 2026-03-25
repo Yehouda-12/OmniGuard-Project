@@ -22,7 +22,7 @@ export default function Settings() {
 
   const fetchCameras = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/cameras", config)
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/cameras`, config)
       setCameras(res.data)
     } catch (e) { console.error("Error loading cameras", e) }
   }
@@ -30,7 +30,7 @@ export default function Settings() {
   const addCamera = async (e) => {
     e.preventDefault()
     try {
-      const res = await axios.post("http://localhost:8000/api/cameras", newCamera, config)
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/cameras`, newCamera, config)
       setCameras([...cameras, res.data])
       setNewCamera({ name: "", url: "" })
       setMessage("Camera added!")
@@ -41,7 +41,7 @@ export default function Settings() {
   const removeCamera = async (id) => {
     if (!window.confirm("Remove this camera?")) return
     try {
-      await axios.delete(`http://localhost:8000/api/cameras/${id}`, config)
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/cameras/${id}`, config)
       setCameras(cameras.filter(c => c.id !== id))
       setMessage("Camera removed")
     } catch (e) { setError("Error removing camera") }
@@ -57,7 +57,7 @@ export default function Settings() {
     ]
 
     try {
-      await axios.put(`http://localhost:8000/api/cameras/${cam.id}`, {
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/cameras/${cam.id}`, {
         name: cam.name,
         url: cam.url,
         authorizedFaces: updatedFaces
@@ -80,7 +80,7 @@ export default function Settings() {
     const updatedFaces = cam.authorizedFaces.filter((_, i) => i !== faceIndex)
 
     try {
-      await axios.put(`http://localhost:8000/api/cameras/${camId}`, {
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/cameras/${camId}`, {
         name: cam.name,
         url: cam.url,
         authorizedFaces: updatedFaces

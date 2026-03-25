@@ -18,7 +18,7 @@ return
     try {
       // Get current camera data
       const res = await axios.get(
-        `http://localhost:8000/api/cameras`,
+        `${import.meta.env.VITE_API_URL}/api/cameras`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
       const camera = res.data.find(c => c.id === alert.cameraId)
@@ -30,7 +30,7 @@ return
       ]
 
       await axios.put(
-        `http://localhost:8000/api/cameras/${alert.cameraId}`,
+        `${import.meta.env.VITE_API_URL}/api/cameras/${alert.cameraId}`,
         { name: camera.name, url: camera.url, authorizedFaces: updatedFaces },
         { headers: { Authorization: `Bearer ${token}` } }
       )
