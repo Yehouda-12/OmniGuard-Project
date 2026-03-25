@@ -15,7 +15,7 @@ except ImportError:
     from server.database import users_collection
     from server.models.user import User
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter( tags=["auth"])
 security = HTTPBearer()
 
 JWT_SECRET = os.getenv("JWT_SECRET", "omniguard_secret")

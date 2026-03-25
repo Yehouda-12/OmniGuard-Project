@@ -4,7 +4,10 @@ import os
 
 load_dotenv()
 
-client = AsyncIOMotorClient(os.getenv("MONGO_URI"))
+client = AsyncIOMotorClient(
+    os.getenv("MONGO_URI"),
+    tlsAllowInvalidCertificates=True
+)
 db = client["omniguard"]
 
 users_collection = db["users"]
