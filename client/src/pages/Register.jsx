@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router"
 import axios from "axios"
+import { apiUrl } from "../lib/api"
 
 export default function Register() {
   const [inputs, setInputs] = useState({ name: "", email: "", password: "", alertEmail: "" })
@@ -13,7 +14,7 @@ export default function Register() {
     setError(null)
     setLoading(true)
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, inputs)
+      const res = await axios.post(apiUrl("/api/auth/register"), inputs)
       localStorage.setItem("token", res.data.jwt)  
       localStorage.setItem("user", JSON.stringify(res.data.user))
       navigate("/dashboard")

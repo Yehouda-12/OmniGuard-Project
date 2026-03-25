@@ -1,8 +1,10 @@
 import { io } from "socket.io-client"
+import { API_BASE_URL } from "./lib/api"
 
-const socket = io(`${import.meta.env.VITE_API_URL}`, {
+const socket = io(API_BASE_URL || undefined, {
   autoConnect: true,
   reconnection: true,
+  path: "/socket.io",
 })
 
 socket.on("connect", () => {

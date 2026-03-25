@@ -1,5 +1,6 @@
 import { useState } from "react"
 import axios from "axios"
+import { apiUrl } from "../lib/api"
 
 export default function AlertToast({ alert, onDismiss, onAuthorized, token }) {
   const [step, setStep] = useState("alert") // alert | naming
@@ -18,7 +19,7 @@ return
     try {
       // Get current camera data
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/cameras`,
+        apiUrl("/api/cameras"),
         { headers: { Authorization: `Bearer ${token}` } }
       )
       const camera = res.data.find(c => c.id === alert.cameraId)
@@ -30,7 +31,7 @@ return
       ]
 
       await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/cameras/${alert.cameraId}`,
+        apiUrl(`/api/cameras/${alert.cameraId}`),
         { name: camera.name, url: camera.url, authorizedFaces: updatedFaces },
         { headers: { Authorization: `Bearer ${token}` } }
       )
