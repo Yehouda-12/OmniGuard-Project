@@ -360,7 +360,7 @@ const useCamera = ({ ready, authorizedFaces, userId, ipCameraUrl = null, cameraI
               if (!canvas || !source) return null;
               canvas.width = width;
               canvas.height = height;
-              canvas.getContext('2d').drawImage(source, 0, 0, width, height);
+              canvas.getContext('2d', { willReadFrequently: true }).drawImage(source, 0, 0, width, height)
               return canvas.toDataURL('image/jpeg', 0.6);
             };
 
